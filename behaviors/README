@@ -22,13 +22,13 @@ fully manage the life-cycle of the GenericServer.
 The SCM system used is Git. 
 
 1. Download and install Git (google git). 
-2. Invoke 'git clone git@github.com:jboner/scala-supervisor.git'.
+2. Invoke 'git clone git://github.com/jboner/scala-otp.git'.
 
 --- BUILD ---
 The build system used is Maven.
 
 1. Download and install Maven 2. 
-2. Step into the root dir 'scala-supervisor'.
+2. Step into the root dir 'scala-otp'.
 3. Invoke 'mvn install' 
 
 This will build the project, run all tests, create a jar and upload it to your local Maven repository ready for use.
@@ -43,7 +43,7 @@ Here is a small step-by-step runnable tutorial on how to create a server, config
 implementation etc. For more details on the API, look at the code or the tests.
 
 You can find this code in the sample.scala file in the root directory. Run it by invoking 'scala -cp 
-target/supervisor-0.3.jar:<path to slf4j and logback jars> sample.scala'
+target/scala-behavior-0.1-SNAPSHOT.jar:<path to slf4j and logback jars> sample.scala'
 
 // =============================================
 // 1. Import statements and Server messages
