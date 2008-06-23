@@ -1,0 +1,16 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="All Scala Behavior Tests" verbose="1">
+  <test name="Supervisor">
+    <classes>
+      <class name="scala.actors.behavior.SupervisorSuite" />
+      <class name="scala.actors.behavior.SupervisorStateSuite" /> 
+    </classes>
+  </test>
+  <test name="GenericServer">
+    <classes>
+      <class name="scala.actors.behavior.GenericServerSuite" /> 
+      <class name="scala.actors.behavior.GenericServerContainerSuite" />
+    </classes>
+  </test>
+</suite>
