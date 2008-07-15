@@ -10,7 +10,7 @@
   <name>Scala Actors Behavior Module</name>
   <description>Implements Erlang-style Behaviors for Scala; Supervisor, GenericServer, GenericEvent and GenericFiniteStateMachine allowing creating fault-tolerant actor-based enterprise systems.</description> 
 
-  <version>0.1</version>
+  <version>0.1-SNAPSHOT</version>
   <inceptionYear>2008</inceptionYear>
 
   <parent>
