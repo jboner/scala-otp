@@ -1,0 +1,10 @@
+target/
+*.ipr
+*.iws
+*.*~
+#*#
+*.cmd
+*.sh
+*.bat
+etags
+TAGS

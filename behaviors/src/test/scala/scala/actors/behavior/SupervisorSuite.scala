@@ -14,6 +14,9 @@ import org.testng.annotations.{Test, BeforeMethod}
 import org.scalatest.testng.TestNGSuite
 import org.scalatest._
 
+/**
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
+ */
 class SupervisorSuite extends TestNGSuite {
 
   var messageLog: String = ""

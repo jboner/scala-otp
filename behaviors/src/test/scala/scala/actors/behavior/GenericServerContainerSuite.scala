@@ -12,6 +12,9 @@ import org.testng.annotations.{Test, BeforeMethod}
 import org.scalatest.testng.TestNGSuite
 import org.scalatest._
 
+/**
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
+ */
 class GenericServerContainerSuite extends TestNGSuite {
   
   var inner: GenericServerContainerActor = null

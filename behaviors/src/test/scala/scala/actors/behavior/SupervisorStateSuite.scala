@@ -11,6 +11,9 @@ import org.scalatest._
 
 import scala.actors.Actor._
 
+/**
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
+ */
 class SupervisorStateSuite extends TestNGSuite {
   val dummyActor = new GenericServer { override def body: PartialFunction[Any, Unit] = { case _ => }}
   val newDummyActor = () => dummyActor
