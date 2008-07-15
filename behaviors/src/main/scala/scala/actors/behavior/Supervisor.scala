@@ -16,16 +16,16 @@ import scala.actors.behavior.Helpers._
 /**
  * Configuration classes - not to be used as messages.
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 sealed abstract class ConfigElement
 
-//abstract class Server extends ConfigElement
+abstract class Server extends ConfigElement
 abstract class FailOverScheme extends ConfigElement
 abstract class Scope extends ConfigElement
 
-case class SupervisorConfig(restartStrategy: RestartStrategy, worker: List[Worker]) extends ConfigElement//Server
-case class Worker(serverContainer: GenericServerContainer, lifeCycle: LifeCycle) extends ConfigElement//Server
+case class SupervisorConfig(restartStrategy: RestartStrategy, worker: List[Server]) extends Server
+case class Worker(serverContainer: GenericServerContainer, lifeCycle: LifeCycle) extends Server
 
 case class RestartStrategy(scheme: FailOverScheme, maxNrOfRetries: Int, withinTimeRange: Int) extends ConfigElement
 
@@ -184,12 +184,10 @@ class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging
             serverContainer.lifeCycle = Some(lifecycle)
             spawnLink(serverContainer)
             
-//           case SupervisorConfig(_, _) => // recursive configuration
-//             throw new UnsupportedOperationException("Does not support nested Supervisors yet, working on it...")
-//             // TODO: recursive supervisors now working with allforone fail-over 
-//             //val supervisor = factory.newSupervisorFor(server.asInstanceOf[SupervisorConfig])
-//             //supervisor ! Start
-//             //this ! AddSupervisor(supervisor)
+           case SupervisorConfig(_, _) => // recursive configuration
+             val supervisor = factory.newSupervisorFor(server.asInstanceOf[SupervisorConfig])
+             supervisor ! Start
+             state.addSupervisor(supervisor)
         })
   }
 
@@ -292,12 +290,8 @@ class AllForOneStrategy(maxNrOfRetries: Int, withinTimeRange: Int)
 extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {  
   override def doHandleFailure(state: SupervisorState, failedServer: Actor, reason: AnyRef) = {
     log.error("Server [{}] has failed due to [{}] - scheduling restart - scheme: ALL_FOR_ONE.", failedServer, reason)
-    for (serverContainer <- state.serverContainers) {
-      restart(serverContainer, reason, state)
-    }
-    //TODO: recursive supervisors now working with allforone fail-over 
-    //state.supervisors.foreach((supervisor) => supervisor ! Exit(failedServer, reason))
-    //println("Actor [" + failedServer + "] has failed due to [" + reason + "]. Restarting all actors, including child supervisors.")
+    for (serverContainer <- state.serverContainers) restart(serverContainer, reason, state)
+    state.supervisors.foreach(_ ! Exit(failedServer, reason))
   }
 }
 
@@ -328,29 +322,37 @@ extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
  * 
  * @author Jonas Bon&#233;r [http://jonasboner.com]
  */
-private[behavior] class SupervisorState(val supervisor: Supervisor, val faultHandler: FaultHandlingStrategy) 
-extends Logging {
+private[behavior] class SupervisorState(val supervisor: Supervisor, val faultHandler: FaultHandlingStrategy) extends Logging {
   faultHandler.supervisor = supervisor
 
   private val lock = new ReadWriteLock
-  private val serverContainerRegistry = new HashMap[String, GenericServerContainer]
+  private val _serverContainerRegistry = new HashMap[String, GenericServerContainer]
+  private var _supervisors: List[Supervisor] = Nil
+  
+  def supervisors: List[Supervisor] = lock.withReadLock { 
+    _supervisors
+  }
+
+  def addSupervisor(supervisor: Supervisor) = lock.withWriteLock { 
+    _supervisors = supervisor :: _supervisors 
+  }
 
   def serverContainers: List[GenericServerContainer] = lock.withReadLock { 
-    serverContainerRegistry.values.toList 
+    _serverContainerRegistry.values.toList 
   }
 
   def getServerContainer(id: String): Option[GenericServerContainer] = lock.withReadLock { 
-    if (serverContainerRegistry.contains(id)) Some(serverContainerRegistry(id))  
+    if (_serverContainerRegistry.contains(id)) Some(_serverContainerRegistry(id))  
     else None
   }
 
   def addServerContainer(serverContainer: GenericServerContainer) = lock.withWriteLock { 
-    serverContainerRegistry += serverContainer.id -> serverContainer 
+    _serverContainerRegistry += serverContainer.id -> serverContainer 
   }
 
   def removeServerContainer(id: String) = lock.withWriteLock { 
     getServerContainer(id) match {
-      case Some(serverContainer) => serverContainerRegistry - id
+      case Some(serverContainer) => _serverContainerRegistry - id
       case None => {}
     }
   }
