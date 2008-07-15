@@ -269,26 +269,19 @@ class SupervisorSuite extends TestNGSuite {
     }
   }
 
-  /*
-   // TODO: Nested supervisors does not work correctly with AllForOne fail-over
-   @Test def testTerminateFirstLevelActorAllForOne = {
-   val sup = getNestedSupervisorsAllForOneConf
-   sup ! Start
-   val server1 = sup.getServerContainerOrFail(classOf[PingPong1Service], throw new RuntimeException("server 'pingpong1 not found"))
-   val inner1 = server1.getActor.asInstanceOf[PingPong1Actor]
-   val server2 = sup.getServerContainerOrFail(classOf[PingPong2Service], throw new RuntimeException("server 'pingpong2 not found"))
-   val inner2 = server2.getActor.asInstanceOf[PingPong2Actor]
-   val server3 = sup.getServerContainerOrFail('classOf[PingPong3Service], throw new RuntimeException("server 'pingpong3 not found"))
-   val inner3 = server3.getActor.asInstanceOf[PingPong3Actor]
-   expect("terminating") {
-   server1.!!![String](Terminate, throw new RuntimeException("TIME OUT"))
+   @Test 
+   def testTerminateFirstLevelActorAllForOne = {
+     val sup = getNestedSupervisorsAllForOneConf
+     sup ! Start
+     intercept(classOf[RuntimeException]) {
+       pingpong1 !!! (Die, throw new RuntimeException("TIME OUT"))
+     }
+     Thread.sleep(100)
+     expect("allforoneallforoneallforone") {
+       messageLog
+     }
    }
-   Thread.sleep(100)
-   expect("allforoneallforoneallforone") {
-   messageLog
-   }
-   }
-   */
+   
 
   // =============================================
   // Creat some supervisors with different configurations
