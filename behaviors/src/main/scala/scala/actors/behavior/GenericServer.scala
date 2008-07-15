@@ -74,7 +74,7 @@ trait GenericServer extends Actor {
  * such as shutdown, restart, re-initialization etc. 
  * Each GenericServerContainer manages one GenericServer.  
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class GenericServerContainer(val id: String, var serverFactory: () => GenericServer) extends Logging {
   require(id != null && id != "")

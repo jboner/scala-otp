@@ -22,7 +22,7 @@ trait Logging {
 }
 
 /**
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 object Helpers extends Logging {
 

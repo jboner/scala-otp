@@ -42,7 +42,7 @@ case object Temporary extends Scope
 /**
  * Messages that the supervisor responds to and returns.
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 sealed abstract class SupervisorMessage
 case object Start extends SupervisorMessage
@@ -84,7 +84,7 @@ case class Configure(config: SupervisorConfig, factory: SupervisorFactory) exten
  * supervisor ! Start // start up all managed servers 
  * </pre>
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 abstract class SupervisorFactory extends Logging {
   def newSupervisor: Supervisor = newSupervisorFor(getSupervisorConfig)
@@ -119,7 +119,7 @@ abstract class SupervisorFactory extends Logging {
 /**
  * TODO: document	
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging {  
 
@@ -205,7 +205,7 @@ class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging
 /**
  * TODO: document	
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRange: Int) extends Logging {  
   private[behavior] var supervisor: Supervisor = _
@@ -284,7 +284,7 @@ abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRang
 /**
  * TODO: document	
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class AllForOneStrategy(maxNrOfRetries: Int, withinTimeRange: Int) 
 extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {  
@@ -299,7 +299,7 @@ extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
 /**
  * TODO: document	
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class OneForOneStrategy(maxNrOfRetries: Int, withinTimeRange: Int) 
 extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {  
@@ -320,7 +320,7 @@ extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
 /**
  * TODO: document	
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 private[behavior] class SupervisorState(val supervisor: Supervisor, val faultHandler: FaultHandlingStrategy) extends Logging {
   faultHandler.supervisor = supervisor
