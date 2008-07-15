@@ -24,6 +24,10 @@ class SupervisorSuite extends TestNGSuite {
   val pingpong2 = new GenericServerContainer("pingpong2", () => new PingPong2Actor)
   val pingpong3 = new GenericServerContainer("pingpong3", () => new PingPong3Actor)
 
+  pingpong1.setTimeout(100)
+  pingpong2.setTimeout(100)
+  pingpong3.setTimeout(100)
+  
   override protected def runTest(testName: String, reporter: Reporter, stopper: Stopper, properties: scala.collection.immutable.Map[String, Any]) {
     setup
     super.runTest(testName, reporter, stopper, properties)
@@ -300,10 +304,10 @@ class SupervisorSuite extends TestNGSuite {
     object factory extends TestSupervisorFactory {
       override def getSupervisorConfig: SupervisorConfig = {
         SupervisorConfig(
-          RestartStrategy(AllForOne, 3, 10000),
+          RestartStrategy(AllForOne, 3, 100),
           Worker(
             pingpong1,
-            LifeCycle(Permanent, 1000))
+            LifeCycle(Permanent, 100))
           :: Nil)
       }
     }
@@ -314,10 +318,10 @@ class SupervisorSuite extends TestNGSuite {
     object factory extends TestSupervisorFactory {
       override def getSupervisorConfig: SupervisorConfig = {
         SupervisorConfig(
-          RestartStrategy(OneForOne, 3, 10000),
+          RestartStrategy(OneForOne, 3, 100),
           Worker(
             pingpong1,
-            LifeCycle(Permanent, 1000))
+            LifeCycle(Permanent, 100))
           :: Nil)
       }
     }
@@ -328,18 +332,18 @@ class SupervisorSuite extends TestNGSuite {
     object factory extends TestSupervisorFactory {
       override def getSupervisorConfig: SupervisorConfig = {
         SupervisorConfig(
-          RestartStrategy(AllForOne, 3, 10000),
+          RestartStrategy(AllForOne, 3, 100),
           Worker(
             pingpong1,
-            LifeCycle(Permanent, 1000))
+            LifeCycle(Permanent, 100))
           ::
           Worker(
             pingpong2,
-            LifeCycle(Permanent, 1000))
+            LifeCycle(Permanent, 100))
           ::
           Worker(
             pingpong3,
-            LifeCycle(Permanent, 1000))
+            LifeCycle(Permanent, 100))
           :: Nil)
       }
     }
@@ -350,49 +354,48 @@ class SupervisorSuite extends TestNGSuite {
     object factory extends TestSupervisorFactory {
       override def getSupervisorConfig: SupervisorConfig = {
         SupervisorConfig(
-          RestartStrategy(OneForOne, 3, 10),
+          RestartStrategy(OneForOne, 3, 100),
           Worker(
             pingpong1,
-            LifeCycle(Permanent, 1000))
+            LifeCycle(Permanent, 100))
           ::
           Worker(
             pingpong2,
-            LifeCycle(Permanent, 1000))
+            LifeCycle(Permanent, 100))
           ::
           Worker(
             pingpong3,
-            LifeCycle(Permanent, 1000))
+            LifeCycle(Permanent, 100))
           :: Nil)
       }
     }
     factory.newSupervisor
   }
 
-    // FIXME: fix nested supervisors
-//   def getNestedSupervisorsAllForOneConf: Supervisor = {
-//     object factory extends TestSupervisorFactory {
-//       override def getSupervisorConfig: SupervisorConfig = {
-//         SupervisorConfig(
-//           RestartStrategy(AllForOne, 3, 10),
-//           Worker(
-//             pingpong1,
-//             LifeCycle(Permanent, 0))
-//           ::
-//           SupervisorConfig(
-//             RestartStrategy(AllForOne, 3, 10),
-//             Worker(
-//               pingpong2,
-//              LifeCycle(Permanent, 0))
-//             ::
-//             Worker(
-//               pingpong3,
-//              LifeCycle(Permanent, 0))
-//             ) :: Nil)
-//           :: Nil)
-//       }
-//     }
-//     factory.newSupervisor
-//   }
+  def getNestedSupervisorsAllForOneConf: Supervisor = {
+    object factory extends TestSupervisorFactory {
+      override def getSupervisorConfig: SupervisorConfig = {
+        SupervisorConfig(
+          RestartStrategy(AllForOne, 3, 100),
+          Worker(
+            pingpong1,
+            LifeCycle(Permanent, 100))
+          ::
+          SupervisorConfig(
+            RestartStrategy(AllForOne, 3, 100),
+            Worker(
+              pingpong2,
+              LifeCycle(Permanent, 100))
+            ::
+            Worker(
+              pingpong3,
+              LifeCycle(Permanent, 100)) 
+            :: Nil)
+          :: Nil)
+       }
+     }
+     factory.newSupervisor
+   }
 
   class PingPong1Actor extends GenericServer {
     override def body: PartialFunction[Any, Unit] = {
