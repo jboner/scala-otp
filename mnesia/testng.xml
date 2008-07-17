@@ -1,0 +1,10 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="All Scala Mnesia Tests" verbose="1">
+  <test name="Mnesia">
+    <classes>
+      <class name="scala.actors.mnesia.MnesiaSuite" />
+      <class name="scala.actors.mnesia.TreapSuite" />
+    </classes>
+  </test>
+</suite>
