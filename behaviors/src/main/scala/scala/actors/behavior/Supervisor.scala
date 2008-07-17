@@ -325,32 +325,32 @@ extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
 private[behavior] class SupervisorState(val supervisor: Supervisor, val faultHandler: FaultHandlingStrategy) extends Logging {
   faultHandler.supervisor = supervisor
 
-  private val lock = new ReadWriteLock
+  private val _lock = new ReadWriteLock
   private val _serverContainerRegistry = new HashMap[String, GenericServerContainer]
   private var _supervisors: List[Supervisor] = Nil
   
-  def supervisors: List[Supervisor] = lock.withReadLock { 
+  def supervisors: List[Supervisor] = _lock.withReadLock { 
     _supervisors
   }
 
-  def addSupervisor(supervisor: Supervisor) = lock.withWriteLock { 
+  def addSupervisor(supervisor: Supervisor) = _lock.withWriteLock { 
     _supervisors = supervisor :: _supervisors 
   }
 
-  def serverContainers: List[GenericServerContainer] = lock.withReadLock { 
+  def serverContainers: List[GenericServerContainer] = _lock.withReadLock { 
     _serverContainerRegistry.values.toList 
   }
 
-  def getServerContainer(id: String): Option[GenericServerContainer] = lock.withReadLock { 
+  def getServerContainer(id: String): Option[GenericServerContainer] = _lock.withReadLock { 
     if (_serverContainerRegistry.contains(id)) Some(_serverContainerRegistry(id))  
     else None
   }
 
-  def addServerContainer(serverContainer: GenericServerContainer) = lock.withWriteLock { 
+  def addServerContainer(serverContainer: GenericServerContainer) = _lock.withWriteLock { 
     _serverContainerRegistry += serverContainer.id -> serverContainer 
   }
 
-  def removeServerContainer(id: String) = lock.withWriteLock { 
+  def removeServerContainer(id: String) = _lock.withWriteLock { 
     getServerContainer(id) match {
       case Some(serverContainer) => _serverContainerRegistry - id
       case None => {}
