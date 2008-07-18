@@ -1,4 +1,4 @@
-/**
+  /**
  * Copyright (C) 2007-2008 Scala OTP Team
  */
 
@@ -19,19 +19,20 @@ class MnesiaSuite extends TestNGSuite {
   val person = classOf[Person]
   val address = classOf[Address]
 
-  Mnesia.
-    createTable(classOf[Person]).
-    createTable(classOf[Address])
-
+  Mnesia.start
+  Mnesia.createTable(classOf[Person]).createTable(classOf[Address])
+  
   override protected def runTest(testName: String, reporter: Reporter, stopper: Stopper, properties: Map[String, Any]) {
     setup
     super.runTest(testName, reporter, stopper, properties)
   }
 
   @BeforeMethod
-  def setup = Mnesia.clear
-
-  @Test
+  def setup = { 
+    Mnesia.clear
+  }
+  
+  //@Test
   def testCreateMultipleTablesWithSameName = {
     intercept(classOf[IllegalArgumentException]) {
       Mnesia.createTable(classOf[Person])
@@ -108,5 +109,4 @@ class MnesiaSuite extends TestNGSuite {
     val jonas = Mnesia.findByIndex(StringIndex("Jonas"), Column ("name", person)).getOrElse(fail("failed findByIndex")).asInstanceOf[Person]
     assert(jonas.name == "Jonas")
   }
-
 }
