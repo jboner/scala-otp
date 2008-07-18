@@ -154,7 +154,7 @@ class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging
         case Start =>
           state.serverContainers.foreach { serverContainer =>
             serverContainer.start
-            log.info("Starting server: {}", serverContainer)
+            log.info("Starting server: {}", serverContainer.getServer)
           }
 
         case Stop =>
@@ -216,7 +216,6 @@ abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRang
     nrOfRetries += 1
     if (timeRangeHasExpired) {
       if (hasReachedMaximumNrOfRetries) {
-        log.debug("Actor [{}] has failed due to [{}].", failedServer, reason)
         log.info("Maximum of restarts [{}] for server [{}] has been reached - the supervisor including all its servers will now be shut down.", maxNrOfRetries, failedServer)
         supervisor ! Stop // execution stops here
       } else {
