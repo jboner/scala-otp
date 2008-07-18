@@ -15,12 +15,12 @@ import scala.actors.Actor._
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class GenericServerSuite extends TestNGSuite {
-  @Test 
+  @Test
   def testSendRegularMessage = {
     val server = new TestGenericServerActor
     server.start
     server !? Ping match {
-      case reply: String => 
+      case reply: String =>
         assert("got a ping" === server.log)
         assert("pong" === reply)
       case _ => fail()
@@ -30,7 +30,7 @@ class GenericServerSuite extends TestNGSuite {
 
 class TestGenericServerActor extends GenericServer  {
   var log: String = ""
-  
+
   override def body: PartialFunction[Any, Unit] = {
     case Ping =>
       log = "got a ping"

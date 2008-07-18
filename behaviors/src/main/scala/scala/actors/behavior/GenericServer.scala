@@ -20,16 +20,16 @@ case class HotSwap(code: Option[PartialFunction[Any, Unit]]) extends GenericServ
 
 /**
  * Base trait for all user-defined servers/actors.
- * 
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 trait GenericServer extends Actor {
 
   /**
-   * Template method implementing the server logic. 
+   * Template method implementing the server logic.
    * To be implemented by subclassing server.
    * <p/>
-   * Example code: 
+   * Example code:
    * <pre>
    *   override def body: PartialFunction[Any, Unit] = {
    *     case Ping =>
@@ -70,10 +70,10 @@ trait GenericServer extends Actor {
 }
 
 /**
- * The container (proxy) for GenericServer, responsible for managing the life-cycle of the server; 
- * such as shutdown, restart, re-initialization etc. 
- * Each GenericServerContainer manages one GenericServer.  
- * 
+ * The container (proxy) for GenericServer, responsible for managing the life-cycle of the server;
+ * such as shutdown, restart, re-initialization etc.
+ * Each GenericServerContainer manages one GenericServer.
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class GenericServerContainer(val id: String, var serverFactory: () => GenericServer) extends Logging {
@@ -82,18 +82,18 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   // TODO: see if we can parameterize class and add type safe getActor method
   //class GenericServerContainer[T <: GenericServer](var factory: () => T) {
   //def getActor: T = server
-  
+
   var lifeCycle: Option[LifeCycle] = None
   val lock = new ReadWriteLock
 
   private var server: GenericServer = null
   private var currentConfig: Option[AnyRef] = None
-  private var timeout = 5000 
+  private var timeout = 5000
 
   /**
    * Sends a one way message to the server - alias for <code>cast(message)</code>.
    * <p>
-   * Example: 
+   * Example:
    * <pre>
    *   server ! Message
    * </pre>
@@ -106,12 +106,12 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   /**
    * Sends a message to the server returns a FutureWithTimeout holding the future reply .
    * <p>
-   * Example: 
+   * Example:
    * <pre>
    *  val future = server !! Message
    *  future.receiveWithin(100) match {
    *    case None => ... // timed out
-   *    case Some(reply) => ... // handle reply     
+   *    case Some(reply) => ... // handle reply
    *  }
    * </pre>
    */
@@ -123,7 +123,7 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   /**
    * Sends a message to the server and blocks indefinitely (no time out), waiting for the reply.
    * <p>
-   * Example: 
+   * Example:
    * <pre>
    *   val result: String = server !? Message
    * </pre>
@@ -134,15 +134,15 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
     Actor.receive {
       case (future.ch ! arg) => arg.asInstanceOf[T]
     }
-  }  
+  }
 
   /**
-   * Sends a message to the server and gets a future back with the reply. Returns 
-   * an Option with either Some(result) if succesful or None if timeout. 
+   * Sends a message to the server and gets a future back with the reply. Returns
+   * an Option with either Some(result) if succesful or None if timeout.
    * <p>
-   * Timeout specified by the <code>setTimeout(time: Int)</code> method. 
+   * Timeout specified by the <code>setTimeout(time: Int)</code> method.
    * <p>
-   * Example: 
+   * Example:
    * <pre>
    *   (server !!! Message).getOrElse(throw new RuntimeException("time out")
    * </pre>
@@ -150,17 +150,17 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   def !!![T](message: Any): Option[T] = {
     require(server != null)
     val future: FutureWithTimeout[T] = lock.withReadLock { server !!! message }
-    future.receiveWithin(timeout) 
+    future.receiveWithin(timeout)
   }
 
   /**
    * Sends a message to the server and gets a future back with the reply.
    * <p>
-   * Tries to get the reply within the timeout specified in the GenericServerContainer 
+   * Tries to get the reply within the timeout specified in the GenericServerContainer
    * and else execute the error handler (which can return a default value, throw an exception
    * or whatever is appropriate).
    * <p>
-   * Example: 
+   * Example:
    * <pre>
    *   server !!! (Message, throw new RuntimeException("time out"))
    *   // OR
@@ -172,11 +172,11 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   /**
    * Sends a message to the server and gets a future back with the reply.
    * <p>
-   * Tries to get the reply within the timeout specified as parameter to the method 
+   * Tries to get the reply within the timeout specified as parameter to the method
    * and else execute the error handler (which can return a default value, throw an exception
    * or whatever is appropriate).
    * <p>
-   * Example: 
+   * Example:
    * <pre>
    *   server !!! (Message, throw new RuntimeException("time out"), 1000)
    *   // OR
@@ -207,14 +207,14 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   /**
    * Sets the timeout for the call(..) method, e.g. the maximum time to wait for a reply
    * before bailing out. Sets the timeout on the future return from the call to the server.
-   */    
+   */
   def setTimeout(time: Int) = timeout = time
 
   /**
    * Returns the next message in the servers mailbox.
    */
   def nextMessage = lock.withReadLock { server ? }
-  
+
   /**
    * Creates a new actor for the GenericServerContainer, and return the newly created actor.
    */
@@ -222,7 +222,7 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
     server = serverFactory()
     server
   }
-    
+
   /**
    * Starts the server.
    */
@@ -244,9 +244,9 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   /**
    * Terminates the server with a reason by sending a Terminate(Some(reason)) message,
    * the shutdownTime defines the maximal time to wait for the server to shutdown before
-   * killing it. 
+   * killing it.
    */
-  private[behavior] def terminate(reason: AnyRef, shutdownTime: Int) = lock.withReadLock { 
+  private[behavior] def terminate(reason: AnyRef, shutdownTime: Int) = lock.withReadLock {
     if (shutdownTime > 0) {
       log.debug("Waiting {} milliseconds for the server to shut down before killing it.", shutdownTime)
       server !? (shutdownTime, Shutdown(reason)) match {
@@ -258,15 +258,15 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   }
 
   private[behavior] def reconfigure(reason: AnyRef, restartedServer: GenericServer, supervisor: Supervisor) = {
-    lock.withWriteLock { 
+    lock.withWriteLock {
       server = restartedServer
       currentConfig match {
-        case Some(config) => server ! Init(config) 
+        case Some(config) => server ! Init(config)
         case None => {}
       }
     }
   }
-    
+
   private[behavior] def getServer: GenericServer = server
 }
 

@@ -34,19 +34,19 @@ object Helpers extends Logging {
 
     def withWriteLock[T](body: => T): T = {
       writeLock.lock
-      try { 
-        body 
-      } finally { 
-        writeLock.unlock 
+      try {
+        body
+      } finally {
+        writeLock.unlock
       }
     }
 
     def withReadLock[T](body: => T): T = {
       readLock.lock
-      try { 
-        body 
-      } finally { 
-        readLock.unlock 
+      try {
+        body
+      } finally {
+        readLock.unlock
       }
     }
   }
@@ -75,17 +75,17 @@ object Helpers extends Logging {
         def apply() =
           if (isSet) value.get
           else ch.receive {
-            case a: A => 
+            case a: A =>
               value = Some(a)
               value.get
           }
         def isSet = receiveWithin(0).isDefined
         def receiveWithin(timeout: Int): Option[A] = value match {
           case None => ch.receiveWithin(timeout) {
-            case TIMEOUT => 
+            case TIMEOUT =>
               log.debug("Future timed out while waiting for actor: {}", a)
               None
-            case a: A => 
+            case a: A =>
               value = Some(a)
               value
           }

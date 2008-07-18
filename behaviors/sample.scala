@@ -20,18 +20,18 @@ class SampleServer extends GenericServer {
 
   // This method implements the core server logic and naturally has to be overridden
   override def body: PartialFunction[Any, Unit] = {
-    case Ping => 
+    case Ping =>
       println("Received Ping"); reply(Pong)
 
-    case OneWay => 
+    case OneWay =>
       println("Received OneWay")
 
-    case Die => 
-      println("Received Die..dying...") 
+    case Die =>
+      println("Received Die..dying...")
       throw new RuntimeException("Received Die message")
   }
 
-  // GenericServer also has some callback life-cycle methods, such as init(..) and shutdown(..) 
+  // GenericServer also has some callback life-cycle methods, such as init(..) and shutdown(..)
 }
 
 // =============================================
@@ -83,9 +83,9 @@ supervisor.getServer("sample2") match {
 
 val future = sampleServer1 !! Ping
 val reply1 = future.receiveWithin(100) match {
-  case Some(reply) => 
+  case Some(reply) =>
     println("Received reply: " + reply)
-  case None => 
+  case None =>
     println("Did not get a reply witin 100 ms")
 }
 
@@ -99,24 +99,24 @@ sampleServer1 ! Die
 
 val reply2 = try {
   sampleServer1 !!! (Ping, throw new RuntimeException("Time-out"), 10) // time out is set to 10 ms (very low on purpose)
-  
-} catch { case e => println("Expected exception: " + e.toString); Pong } 
+
+} catch { case e => println("Expected exception: " + e.toString); Pong }
 
 // =============================================
 // 11. Server should be up again. Try the same call again
 
 val reply3 = try {
-  sampleServer1 !!! (Ping, throw new RuntimeException("Time-out"), 1000) 
-} catch { case e => println("Expected exception: " + e.toString); Pong } 
+  sampleServer1 !!! (Ping, throw new RuntimeException("Time-out"), 1000)
+} catch { case e => println("Expected exception: " + e.toString); Pong }
 
 // Also check server number 2
-sampleServer2 ! Ping 
+sampleServer2 ! Ping
 
 // =============================================
 // 11. Try to hotswap the server implementation
 
 sampleServer1.hotswap(Some({
-  case Ping => 
+  case Ping =>
     println("Hotswapped Ping")
 }))
 
@@ -129,7 +129,7 @@ sampleServer1 ! Ping
 // 13. Hotswap again
 
 sampleServer1.hotswap(Some({
-  case Pong => 
+  case Pong =>
     println("Hotswapped again, now doing Pong")
     reply(Ping)
 }))
@@ -143,7 +143,7 @@ val reply4 = (sampleServer1 !!! Pong).getOrElse({println("Time out when sending 
 
 val reply5 = sampleServer1 !!! Pong match {
   case Some(result) => result
-  case None => println("Time out when sending Pong"); Ping  
+  case None => println("Time out when sending Pong"); Ping
 }
 
 // =============================================

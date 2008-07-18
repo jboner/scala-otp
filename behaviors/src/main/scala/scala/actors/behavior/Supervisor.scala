@@ -15,7 +15,7 @@ import scala.actors.behavior.Helpers._
 
 /**
  * Configuration classes - not to be used as messages.
- * 
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 sealed abstract class ConfigElement
@@ -41,7 +41,7 @@ case object Temporary extends Scope
 
 /**
  * Messages that the supervisor responds to and returns.
- * 
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 sealed abstract class SupervisorMessage
@@ -52,17 +52,17 @@ case class Configure(config: SupervisorConfig, factory: SupervisorFactory) exten
 /**
  * Abstract base class for all supervisor factories.
  * <p>
- * Example usage: 
+ * Example usage:
  * <pre>
  *  class MySupervisorFactory extends SupervisorFactory {
- * 
+ *
  *    override protected def getSupervisorConfig: SupervisorConfig = {
  *      SupervisorConfig(
  *        RestartStrategy(OneForOne, 3, 10),
  *        Worker(
  *          myFirstActorInstance,
  *          LifeCycle(Permanent, 1000))
- *        :: 
+ *        ::
  *        Worker(
  *          mySecondActorInstance,
  *          LifeCycle(Permanent, 1000))
@@ -81,9 +81,9 @@ case class Configure(config: SupervisorConfig, factory: SupervisorFactory) exten
  *
  * <pre>
  * val supervisor = factory.newSupervisor
- * supervisor ! Start // start up all managed servers 
+ * supervisor ! Start // start up all managed servers
  * </pre>
- * 
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 abstract class SupervisorFactory extends Logging {
@@ -99,7 +99,7 @@ abstract class SupervisorFactory extends Logging {
       }
       supervisor
   }
- 
+
   /**
    * To be overridden by concrete factory.
    * Should return the SupervisorConfig for the supervisor.
@@ -107,41 +107,41 @@ abstract class SupervisorFactory extends Logging {
   protected def getSupervisorConfig: SupervisorConfig
 
   protected def create(strategy: RestartStrategy): Supervisor = strategy match {
-    case RestartStrategy(scheme, maxNrOfRetries, timeRange) => 
+    case RestartStrategy(scheme, maxNrOfRetries, timeRange) =>
       scheme match {
         case AllForOne => new Supervisor(new AllForOneStrategy(maxNrOfRetries, timeRange))
         case OneForOne => new Supervisor(new OneForOneStrategy(maxNrOfRetries, timeRange))
-      }   
-  }  
+      }
+  }
 }
 
 //====================================================
 /**
- * TODO: document	
- * 
+ * TODO: document
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging {  
+class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging {
 
-  private val state = new SupervisorState(this, faultHandler) 
-  
+  private val state = new SupervisorState(this, faultHandler)
+
   /**
    * Returns an Option with the GenericServerContainer for the server with the name specified.
-   * If the server is found then Some(server) is returned else None. 
+   * If the server is found then Some(server) is returned else None.
    */
   def getServer(id: String): Option[GenericServerContainer] = state.getServerContainer(id)
 
   /**
    * Returns an the GenericServerContainer for the server with the name specified.
-   * If the server is not found then the error handler is invoked. 
+   * If the server is not found then the error handler is invoked.
    */
   def getServerOrElse(id: String, errorHandler: => GenericServerContainer): GenericServerContainer = {
     getServer(id) match {
-      case Some(serverContainer) => serverContainer  
+      case Some(serverContainer) => serverContainer
       case None => errorHandler
     }
   }
-    
+
   def act = {
     self.trapExit = true
     loop {
@@ -150,32 +150,32 @@ class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging
           log.debug("Configuring supervisor:{} ", this)
           configure(config, factory)
           reply('success)
-      
-        case Start => 
-          state.serverContainers.foreach { serverContainer => 
+
+        case Start =>
+          state.serverContainers.foreach { serverContainer =>
             serverContainer.start
             log.info("Starting server: {}", serverContainer)
           }
-       
-        case Stop => 
-          state.serverContainers.foreach { serverContainer => 
+
+        case Stop =>
+          state.serverContainers.foreach { serverContainer =>
             serverContainer.terminate('normal)
             log.info("Stopping server: {}", serverContainer)
-          }          
+          }
           log.info("Stopping supervisor: {}", this)
           exit('normal)
-        
-        case Exit(failedServer, reason) => 
+
+        case Exit(failedServer, reason) =>
           reason match {
             case 'forced => {} // do nothing
             case _ => state.faultHandler.handleFailure(state, failedServer, reason)
           }
-      
+
         case unexpected => log.warn("Unexpected message [{}], ignoring...", unexpected)
       }
     }
   }
-  
+
   private def configure(config: SupervisorConfig, factory: SupervisorFactory) = config match {
     case SupervisorConfig(_, servers) =>
       servers.map(server =>
@@ -183,7 +183,7 @@ class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging
           case Worker(serverContainer, lifecycle) =>
             serverContainer.lifeCycle = Some(lifecycle)
             spawnLink(serverContainer)
-            
+
            case SupervisorConfig(_, _) => // recursive configuration
              val supervisor = factory.newSupervisorFor(server.asInstanceOf[SupervisorConfig])
              supervisor ! Start
@@ -194,20 +194,20 @@ class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging
   private[behavior] def spawnLink(serverContainer: GenericServerContainer): GenericServer = {
     val newServer = serverContainer.newServer()
     newServer.start
-    self.link(newServer) 
-    log.debug("Linking actor [{}] to supervisor [{}]", newServer, this) 
+    self.link(newServer)
+    log.debug("Linking actor [{}] to supervisor [{}]", newServer, this)
     state.addServerContainer(serverContainer)
     newServer
-  } 
+  }
 }
-    
+
 //====================================================
 /**
- * TODO: document	
- * 
+ * TODO: document
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRange: Int) extends Logging {  
+abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRange: Int) extends Logging {
   private[behavior] var supervisor: Supervisor = _
   private var nrOfRetries = 0
   private var retryStartTime = currentTime
@@ -221,7 +221,7 @@ abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRang
         supervisor ! Stop // execution stops here
       } else {
         nrOfRetries = 0
-        retryStartTime = currentTime          
+        retryStartTime = currentTime
       }
     }
     doHandleFailure(state, failedServer, reason)
@@ -242,17 +242,17 @@ abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRang
           serverContainer.terminate(reason, shutdownTime)
 
           scope match {
-            case Permanent => 
+            case Permanent =>
               log.debug("Restarting server [{}] configured as PERMANENT.", serverContainer.id)
-              serverContainer.reconfigure(reason, supervisor.spawnLink(serverContainer), state.supervisor)      
+              serverContainer.reconfigure(reason, supervisor.spawnLink(serverContainer), state.supervisor)
 
-            case Temporary => 
+            case Temporary =>
               if (reason == 'normal) {
                 log.debug("Restarting server [{}] configured as TEMPORARY (since exited naturally).", serverContainer.id)
-                serverContainer.reconfigure(reason, supervisor.spawnLink(serverContainer), state.supervisor)      
+                serverContainer.reconfigure(reason, supervisor.spawnLink(serverContainer), state.supervisor)
               } else log.info("Server [{}] configured as TEMPORARY will not be restarted (received unnatural exit message).", serverContainer.id)
 
-            case Transient => 
+            case Transient =>
               log.info("Server [{}] configured as TRANSIENT will not be restarted.", serverContainer.id)
           }
       }
@@ -282,12 +282,12 @@ abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRang
 
 //====================================================
 /**
- * TODO: document	
- * 
+ * TODO: document
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-class AllForOneStrategy(maxNrOfRetries: Int, withinTimeRange: Int) 
-extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {  
+class AllForOneStrategy(maxNrOfRetries: Int, withinTimeRange: Int)
+extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
   override def doHandleFailure(state: SupervisorState, failedServer: Actor, reason: AnyRef) = {
     log.error("Server [{}] has failed due to [{}] - scheduling restart - scheme: ALL_FOR_ONE.", failedServer, reason)
     for (serverContainer <- state.serverContainers) restart(serverContainer, reason, state)
@@ -297,16 +297,16 @@ extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
 
 //====================================================
 /**
- * TODO: document	
- * 
+ * TODO: document
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-class OneForOneStrategy(maxNrOfRetries: Int, withinTimeRange: Int) 
-extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {  
-  override def doHandleFailure(state: SupervisorState, failedServer: Actor, reason: AnyRef) = {    
+class OneForOneStrategy(maxNrOfRetries: Int, withinTimeRange: Int)
+extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
+  override def doHandleFailure(state: SupervisorState, failedServer: Actor, reason: AnyRef) = {
     log.error("Server [{}] has failed due to [{}] - scheduling restart - scheme: ONE_FOR_ONE.", failedServer, reason)
-    var serverContainer: Option[GenericServerContainer] = None 
-    state.serverContainers.foreach { 
+    var serverContainer: Option[GenericServerContainer] = None
+    state.serverContainers.foreach {
       container => if (container.getServer == failedServer) serverContainer = Some(container)
     }
     serverContainer match {
@@ -318,8 +318,8 @@ extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
 
 //====================================================
 /**
- * TODO: document	
- * 
+ * TODO: document
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 private[behavior] class SupervisorState(val supervisor: Supervisor, val faultHandler: FaultHandlingStrategy) extends Logging {
@@ -328,29 +328,29 @@ private[behavior] class SupervisorState(val supervisor: Supervisor, val faultHan
   private val _lock = new ReadWriteLock
   private val _serverContainerRegistry = new HashMap[String, GenericServerContainer]
   private var _supervisors: List[Supervisor] = Nil
-  
-  def supervisors: List[Supervisor] = _lock.withReadLock { 
+
+  def supervisors: List[Supervisor] = _lock.withReadLock {
     _supervisors
   }
 
-  def addSupervisor(supervisor: Supervisor) = _lock.withWriteLock { 
-    _supervisors = supervisor :: _supervisors 
+  def addSupervisor(supervisor: Supervisor) = _lock.withWriteLock {
+    _supervisors = supervisor :: _supervisors
   }
 
-  def serverContainers: List[GenericServerContainer] = _lock.withReadLock { 
-    _serverContainerRegistry.values.toList 
+  def serverContainers: List[GenericServerContainer] = _lock.withReadLock {
+    _serverContainerRegistry.values.toList
   }
 
-  def getServerContainer(id: String): Option[GenericServerContainer] = _lock.withReadLock { 
-    if (_serverContainerRegistry.contains(id)) Some(_serverContainerRegistry(id))  
+  def getServerContainer(id: String): Option[GenericServerContainer] = _lock.withReadLock {
+    if (_serverContainerRegistry.contains(id)) Some(_serverContainerRegistry(id))
     else None
   }
 
-  def addServerContainer(serverContainer: GenericServerContainer) = _lock.withWriteLock { 
-    _serverContainerRegistry += serverContainer.id -> serverContainer 
+  def addServerContainer(serverContainer: GenericServerContainer) = _lock.withWriteLock {
+    _serverContainerRegistry += serverContainer.id -> serverContainer
   }
 
-  def removeServerContainer(id: String) = _lock.withWriteLock { 
+  def removeServerContainer(id: String) = _lock.withWriteLock {
     getServerContainer(id) match {
       case Some(serverContainer) => _serverContainerRegistry - id
       case None => {}

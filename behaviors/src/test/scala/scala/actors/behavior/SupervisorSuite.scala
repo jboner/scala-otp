@@ -27,7 +27,7 @@ class SupervisorSuite extends TestNGSuite {
   pingpong1.setTimeout(100)
   pingpong2.setTimeout(100)
   pingpong3.setTimeout(100)
-  
+
   override protected def runTest(testName: String, reporter: Reporter, stopper: Stopper, properties: scala.collection.immutable.Map[String, Any]) {
     setup
     super.runTest(testName, reporter, stopper, properties)
@@ -68,7 +68,7 @@ class SupervisorSuite extends TestNGSuite {
   }
 
   // ===========================================
-  @Test 
+  @Test
   def testKillSingleActorOneForOne = {
     val sup = getSingleActorOneForOneSupervisor
     sup ! Start
@@ -83,7 +83,7 @@ class SupervisorSuite extends TestNGSuite {
   }
 
   // ===========================================
-  @Test 
+  @Test
   def testCallKillCallSingleActorOneForOne = {
     val sup = getSingleActorOneForOneSupervisor
     sup ! Start
@@ -112,7 +112,7 @@ class SupervisorSuite extends TestNGSuite {
   }
 
   // ===========================================
-  @Test 
+  @Test
   def testKillSingleActorAllForOne = {
     val sup = getSingleActorAllForOneSupervisor
     sup ! Start
@@ -126,7 +126,7 @@ class SupervisorSuite extends TestNGSuite {
   }
 
   // ===========================================
-  @Test 
+  @Test
   def testCallKillCallSingleActorAllForOne = {
     val sup = getSingleActorAllForOneSupervisor
     sup ! Start
@@ -154,7 +154,7 @@ class SupervisorSuite extends TestNGSuite {
   }
 
   // ===========================================
-  @Test 
+  @Test
   def testKillMultipleActorsOneForOne = {
     val sup = getMultipleActorsOneForOneConf
     sup ! Start
@@ -168,7 +168,7 @@ class SupervisorSuite extends TestNGSuite {
   }
 
   // ===========================================
-  @Test 
+  @Test
   def tesCallKillCallMultipleActorsOneForOne = {
     val sup = getMultipleActorsOneForOneConf
     sup ! Start
@@ -212,7 +212,7 @@ class SupervisorSuite extends TestNGSuite {
   }
 
   // ===========================================
-  @Test 
+  @Test
   def testKillMultipleActorsAllForOne = {
     val sup = getMultipleActorsAllForOneConf
     sup ! Start
@@ -226,7 +226,7 @@ class SupervisorSuite extends TestNGSuite {
   }
 
   // ===========================================
-  @Test 
+  @Test
   def tesCallKillCallMultipleActorsAllForOne = {
     val sup = getMultipleActorsAllForOneConf
     sup ! Start
@@ -269,7 +269,7 @@ class SupervisorSuite extends TestNGSuite {
     }
   }
 
-   @Test 
+   @Test
    def testTerminateFirstLevelActorAllForOne = {
      val sup = getNestedSupervisorsAllForOneConf
      sup ! Start
@@ -281,7 +281,7 @@ class SupervisorSuite extends TestNGSuite {
        messageLog
      }
    }
-   
+
 
   // =============================================
   // Creat some supervisors with different configurations
@@ -382,7 +382,7 @@ class SupervisorSuite extends TestNGSuite {
             ::
             Worker(
               pingpong3,
-              LifeCycle(Permanent, 100)) 
+              LifeCycle(Permanent, 100))
             :: Nil)
           :: Nil)
        }
@@ -395,7 +395,7 @@ class SupervisorSuite extends TestNGSuite {
       case Ping =>
         messageLog += "ping"
         reply("pong")
-      case Die => 
+      case Die =>
         throw new RuntimeException("Recieved Die message")
     }
   }
@@ -405,7 +405,7 @@ class SupervisorSuite extends TestNGSuite {
       case Ping =>
         messageLog += "ping"
         reply("pong")
-      case Die => 
+      case Die =>
         throw new RuntimeException("Recieved Die message")
     }
   }
@@ -415,7 +415,7 @@ class SupervisorSuite extends TestNGSuite {
       case Ping =>
         messageLog += "ping"
         reply("pong")
-      case Die => 
+      case Die =>
         throw new RuntimeException("Recieved Die message")
     }
   }

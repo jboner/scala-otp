@@ -18,7 +18,7 @@ class SupervisorStateSuite extends TestNGSuite {
   val dummyActor = new GenericServer { override def body: PartialFunction[Any, Unit] = { case _ => }}
   val newDummyActor = () => dummyActor
   var state: SupervisorState = _
-  var proxy: GenericServerContainer = _ 
+  var proxy: GenericServerContainer = _
   var supervisor: Supervisor = _
 
   override protected def runTest(testName: String, reporter: Reporter, stopper: Stopper, properties: Map[String, Any]) {
@@ -26,7 +26,7 @@ class SupervisorStateSuite extends TestNGSuite {
     super.runTest(testName, reporter, stopper, properties)
   }
 
-  @BeforeMethod 
+  @BeforeMethod
   def setup = {
     proxy = new GenericServerContainer("server1", newDummyActor)
     object factory extends SupervisorFactory {
@@ -40,61 +40,61 @@ class SupervisorStateSuite extends TestNGSuite {
       }
     }
     supervisor = factory.newSupervisor
-    state = new SupervisorState(supervisor, new AllForOneStrategy(3, 100)) 
+    state = new SupervisorState(supervisor, new AllForOneStrategy(3, 100))
   }
- 
-  @Test 
+
+  @Test
   def testAddServer = {
     state.addServerContainer(proxy)
     state.getServerContainer("server1") match {
       case None => fail("should have returned server")
-      case Some(server) => 
+      case Some(server) =>
         assert(server != null)
         assert(server.isInstanceOf[GenericServerContainer])
         assert(proxy === server)
     }
   }
 
-  @Test 
+  @Test
   def testGetServer = {
     state.addServerContainer(proxy)
     state.getServerContainer("server1") match {
       case None => fail("should have returned server")
-      case Some(server) => 
+      case Some(server) =>
         assert(server != null)
         assert(server.isInstanceOf[GenericServerContainer])
         assert(proxy === server)
-    }    
+    }
   }
 
-  @Test 
+  @Test
   def testRemoveServer = {
     state.addServerContainer(proxy)
 
     state.removeServerContainer("server1")
     state.getServerContainer("server1") match {
       case Some(_) => fail("should have returned None")
-      case None => 
+      case None =>
     }
     state.getServerContainer("dummyActor") match {
       case Some(_) => fail("should have returned None")
-      case None => 
+      case None =>
     }
   }
 
-  @Test 
+  @Test
   def testGetNonExistingServerBySymbol = {
     state.getServerContainer("server2") match {
       case Some(_) => fail("should have returned None")
-      case None => 
+      case None =>
     }
   }
 
-  @Test 
+  @Test
   def testGetNonExistingServerByActor = {
     state.getServerContainer("dummyActor") match {
       case Some(_) => fail("should have returned None")
-      case None => 
+      case None =>
     }
   }
 }

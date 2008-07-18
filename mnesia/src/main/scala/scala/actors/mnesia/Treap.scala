@@ -29,71 +29,71 @@ class Treap[A <% Ordered[A], B <: AnyRef](val root: TreapNode[A, B])
   def this() = this(TreapEmptyNode[A, B])
 
   def mkTreap(r: TreapNode[A, B]): Treap[A, B] = new Treap(r)
-  
-  def mkLeaf(k: A, v: B): TreapNode[A, B] =
-    TreapMemNode(k, v, 
-                 TreapEmptyNode[A, B], 
-                 TreapEmptyNode[A, B])  
 
-  def mkNode(basis: TreapFullNode[A, B], 
-             left:  TreapNode[A, B], 
+  def mkLeaf(k: A, v: B): TreapNode[A, B] =
+    TreapMemNode(k, v,
+                 TreapEmptyNode[A, B],
+                 TreapEmptyNode[A, B])
+
+  def mkNode(basis: TreapFullNode[A, B],
+             left:  TreapNode[A, B],
              right: TreapNode[A, B]): TreapNode[A, B] = basis match {
-    case TreapMemNode(k, v, _, _) => 
+    case TreapMemNode(k, v, _, _) =>
          TreapMemNode(k, v, left, right)
   }
 
   def union(that: Treap[A, B]): Treap[A, B]     = union(that.root)
   def intersect(that: Treap[A, B]): Treap[A, B] = intersect(that.root)
   def diff(that: Treap[A, B]): Treap[A, B]      = diff(that.root)
-  
+
   def union(that: TreapNode[A, B]): Treap[A, B]     = mkTreap(root.union(this, that))
   def intersect(that: TreapNode[A, B]): Treap[A, B] = mkTreap(root.intersect(this, that))
   def diff(that: TreapNode[A, B]): Treap[A, B]      = mkTreap(root.diff(this, that))
-  
-  lazy val count = root.count(this) // TODO: Revisit treap size/count. 
+
+  lazy val count = root.count(this) // TODO: Revisit treap size/count.
 
   def size: Int = count.toInt
 
-  override def empty[C]: immutable.SortedMap[A, C] = 
+  override def empty[C]: immutable.SortedMap[A, C] =
     throw new RuntimeException("TODO: treap empty method is unimplemented")
-  
-  override def get(key: A): Option[B] = 
+
+  override def get(key: A): Option[B] =
     root.lookup(this, key) match {
       case n: TreapFullNode[A, B] => Some(n.value(this))
       case _ => None
     }
-    
+
   def elements: Iterator[Pair[A, B]] = root.elements(this).elements
 
-  override def rangeImpl(from: Option[A], until: Option[A]): immutable.SortedMap[A, B] = 
+  override def rangeImpl(from: Option[A], until: Option[A]): immutable.SortedMap[A, B] =
     mkTreap(root.range(this, from, until))
-    
+
   override def update[B1 >: B](key: A, value: B1): immutable.SortedMap[A, B1] =
     value match {
       case v: B => upd(key, v)
       case _ => throw new RuntimeException("TODO: wrong treap update type")
     }
-  
-  def upd(key: A, value: B): Treap[A, B] =  
+
+  def upd(key: A, value: B): Treap[A, B] =
     union(mkLeaf(key, value))
 
-  override def - (key: A): immutable.SortedMap[A, B] = 
+  override def - (key: A): immutable.SortedMap[A, B] =
     del(key)
 
-  def del(key: A): Treap[A, B] = 
+  def del(key: A): Treap[A, B] =
     mkTreap(root.del(this, key))
-  
+
   override def firstKey: A = root.firstKey(this)
   override def lastKey: A  = root.lastKey(this)
-  
+
   override def compare(k0: A, k1: A): Int = k0.compare(k1)
-    
+
   override def toString = root.toString
 
   /**
    * Subclasses will definitely want to consider overriding this
    * weak priority calculation.  Consider, for example, leveraging
-   * the treap's heap-like ability to shuffle high-priority 
+   * the treap's heap-like ability to shuffle high-priority
    * nodes to the top of the heap for faster access.
    */
   def priority(node: TreapFullNode[A, B]): Int = {
@@ -107,8 +107,8 @@ class Treap[A <% Ordered[A], B <: AnyRef](val root: TreapNode[A, B])
 abstract class TreapBase[A <% Ordered[A], B <: AnyRef]  {
   def mkLeaf(k: A, v: B): TreapNode[A, B]
 
-  def mkNode(basis: TreapFullNode[A, B], 
-             left:  TreapNode[A, B], 
+  def mkNode(basis: TreapFullNode[A, B],
+             left:  TreapNode[A, B],
              right: TreapNode[A, B]): TreapNode[A, B]
 
   def compare(x: A, y: A): Int
@@ -117,20 +117,20 @@ abstract class TreapBase[A <% Ordered[A], B <: AnyRef]  {
 
 // ---------------------------------------------------------
 
-abstract class TreapNode[A <% Ordered[A], B <: AnyRef] 
+abstract class TreapNode[A <% Ordered[A], B <: AnyRef]
 {
   type T     = TreapBase[A, B]
   type Node  = TreapNode[A, B]
   type Full  = TreapFullNode[A, B]
   type Empty = TreapEmptyNode[A, B]
-  
+
   def isEmpty: Boolean
   def isLeaf(t: T): Boolean
-  
+
   def count(t: T): Long
   def firstKey(t: T): A
   def lastKey(t: T): A
-  
+
   def lookup(t: T, s: A): Node
 
   /**
@@ -149,24 +149,24 @@ abstract class TreapNode[A <% Ordered[A], B <: AnyRef]
   def join(t: T, that: Node): Node
 
   /**
-   * When union'ed, the values from "that" have precedence 
+   * When union'ed, the values from "that" have precedence
    * over "this" when there are matching keys.
-   */ 
+   */
   def union(t: T, that: Node): Node
 
   /**
-   * When intersect'ed, the values from "that" have precedence 
+   * When intersect'ed, the values from "that" have precedence
    * over "this" when there are matching keys.
-   */ 
+   */
   def intersect(t: T, that: Node): Node
-  
+
   /**
    * Works like set-difference, as in "this" minus "that", or this - that.
    */
   def diff(t: T, that: Node): Node
 
   def elements(t: T): immutable.ImmutableIterator[Pair[A, B]]
-  
+
   def range(t: T, from: Option[A], until: Option[A]): TreapNode[A, B]
 
   def del(t: T, k: A): TreapNode[A, B]
@@ -174,27 +174,27 @@ abstract class TreapNode[A <% Ordered[A], B <: AnyRef]
 
 // ---------------------------------------------------------
 
-case class TreapEmptyNode[A <% Ordered[A], B <: AnyRef] extends TreapNode[A, B] 
-{ 
+case class TreapEmptyNode[A <% Ordered[A], B <: AnyRef] extends TreapNode[A, B]
+{
   def isEmpty: Boolean = true
   def isLeaf(t: T): Boolean  = throw new RuntimeException("isLeaf on empty treap node")
 
   def count(t: T)    = 0L
   def firstKey(t: T) = throw new NoSuchElementException("empty treap")
   def lastKey(t: T)  = throw new NoSuchElementException("empty treap")
-  
+
   def lookup(t: T, s: A): Node          = this
   def split(t: T, s: A)                 = (this, null, this)
   def join(t: T, that: Node): Node      = that
   def union(t: T, that: Node): Node     = that
   def intersect(t: T, that: Node): Node = this
   def diff(t: T, that: Node): Node      = this
-  
-  def elements(t: T): immutable.ImmutableIterator[Pair[A, Nothing]] = 
+
+  def elements(t: T): immutable.ImmutableIterator[Pair[A, Nothing]] =
                       immutable.ImmutableIterator.empty
 
   def range(t: T, from: Option[A], until: Option[A]): TreapNode[A, B] = this
-  
+
   def del(t: T, k: A): TreapNode[A, B] = this
 
   override def toString = "_"
@@ -202,18 +202,18 @@ case class TreapEmptyNode[A <% Ordered[A], B <: AnyRef] extends TreapNode[A, B]
 
 // ---------------------------------------------------------
 
-abstract class TreapFullNode[A <% Ordered[A], B <: AnyRef] extends TreapNode[A, B] 
+abstract class TreapFullNode[A <% Ordered[A], B <: AnyRef] extends TreapNode[A, B]
 {
-  def key: A  
+  def key: A
   def left(t: T): Node
   def right(t: T): Node
   def value(t: T): B
-  
+
   def priority(t: T) = t.priority(this)
 
   def isEmpty: Boolean = false
   def isLeaf(t: T): Boolean = left(t).isEmpty && right(t).isEmpty
-  
+
   def count(t: T)    = 1L + left(t).count(t) + right(t).count(t)
   def firstKey(t: T) = if (left(t).isEmpty)  key else left(t).firstKey(t)
   def lastKey(t: T)  = if (right(t).isEmpty) key else right(t).lastKey(t)
@@ -252,7 +252,7 @@ abstract class TreapFullNode[A <% Ordered[A], B <: AnyRef] extends TreapNode[A, 
       }
     }
   }
-  
+
   def join(t: T, that: Node): Node = that match {
     case e: Empty => this
     case b: Full =>
@@ -273,7 +273,7 @@ abstract class TreapFullNode[A <% Ordered[A], B <: AnyRef] extends TreapNode[A, 
           t.mkNode(m, left(t).union(t, l), right(t).union(t, r))
       } else {
         val (l, m, r) = this.split(t, b.key)
-        
+
         // Note we don't use m because b (that) has precendence over this when union'ed.
         //
         t.mkNode(b, l.union(t, b.left(t)), r.union(t, b.right(t)))
@@ -317,16 +317,16 @@ abstract class TreapFullNode[A <% Ordered[A], B <: AnyRef] extends TreapNode[A, 
         l.join(t, r)
   }
 
-  def elements(t: T): immutable.ImmutableIterator[Pair[A, B]] = 
+  def elements(t: T): immutable.ImmutableIterator[Pair[A, B]] =
     left(t).elements(t).append(Pair(key, value(t)), () => right(t).elements(t))
 
   def range(t: T, from: Option[A], until: Option[A]): TreapNode[A, B] = {
-    if (from == None && until == None) 
+    if (from == None && until == None)
       return this
 
     if (from  != None && t.compare(key, from.get) < 0)   return right(t).range(t, from, until)
     if (until != None && t.compare(key, until.get) >= 0) return left(t).range(t, from, until)
-    
+
     val (l1, m1, r1) = from.map(s => left(t).split(t, s)).
                             getOrElse(null, null, left(t))
     val (l2, m2, r2) = until.map(s => right(t).split(t, s)).
@@ -347,7 +347,7 @@ abstract class TreapFullNode[A <% Ordered[A], B <: AnyRef] extends TreapNode[A, 
 
 // ---------------------------------------------------------
 
-case class TreapMemNode[A <% Ordered[A], B <: AnyRef](key: A, v: B, nl: TreapNode[A, B], nr: TreapNode[A, B]) 
+case class TreapMemNode[A <% Ordered[A], B <: AnyRef](key: A, v: B, nl: TreapNode[A, B], nr: TreapNode[A, B])
    extends TreapFullNode[A, B] {
   def left(t: T)  = nl
   def right(t: T) = nr

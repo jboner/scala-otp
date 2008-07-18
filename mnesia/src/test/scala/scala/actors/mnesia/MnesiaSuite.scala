@@ -16,7 +16,7 @@ case class Address(street: String, number: String, zipcode: Int, city: String, c
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class MnesiaSuite extends TestNGSuite {
-  val person = classOf[Person]      
+  val person = classOf[Person]
   val address = classOf[Address]
 
   Mnesia.
@@ -28,64 +28,64 @@ class MnesiaSuite extends TestNGSuite {
     super.runTest(testName, reporter, stopper, properties)
   }
 
-  @BeforeMethod 
+  @BeforeMethod
   def setup = Mnesia.clear
- 
-  @Test 
-  def testCreateMultipleTablesWithSameName = {      
+
+  @Test
+  def testCreateMultipleTablesWithSameName = {
     intercept(classOf[IllegalArgumentException]) {
       Mnesia.createTable(classOf[Person])
     }
     assert(true === true)
   }
 
-  @Test 
-  def testAddIndexToEmptyTable = {      
+  @Test
+  def testAddIndexToEmptyTable = {
     Mnesia.addIndex[String]("name", person, StringIndex.newInstance)
   }
-  
-  @Test 
-  def testAddIndexNonEmptyTable = {      
+
+  @Test
+  def testAddIndexNonEmptyTable = {
     Mnesia.store(Person("Jonas"))
     Mnesia.store(Person("Sara"))
     Mnesia.store(Person("Kalle"))
     Mnesia.addIndex[String]("name", person, StringIndex.newInstance)
   }
-  
-  @Test 
+
+  @Test
   def testStoreFindAll = {
     Mnesia.store(Person("Jonas"))
     Mnesia.store(Person("Sara"))
     Mnesia.store(Person("Kalle"))
-      
+
     val persons = Mnesia findAll person
     assert(persons.size === 3)
     assert(true === true)
   }
 
-  @Test 
-  def testRemoveByPK = {      
+  @Test
+  def testRemoveByPK = {
     val jonas = Mnesia.store(Person("Jonas"))
     val sara = Mnesia.store(Person("Sara"))
     val kalle = Mnesia.store(Person("Kalle"))
-      
+
     // remove by PK
     Mnesia.remove(jonas)
     val persons1 = Mnesia findAll person
     assert(persons1.size === 2)
-    
+
     Mnesia.remove(kalle)
     val persons2 = Mnesia findAll person
     assert(persons2.size === 1)
     assert(true === true)
   }
 
-  @Test 
-  def testRemoveByRef = {      
+  @Test
+  def testRemoveByRef = {
     val jonas = Mnesia.store(Person("Jonas"))
     val sara = Mnesia.store(Person("Sara"))
     val kalle = Mnesia.store(Person("Kalle"))
-      
+
     // remove by instance
     Mnesia.remove(Person("Kalle"))
     val persons = Mnesia findAll person
@@ -94,19 +94,19 @@ class MnesiaSuite extends TestNGSuite {
     assert(true === true)
   }
 
-  @Test 
-  def testFindByPK = {      
+  @Test
+  def testFindByPK = {
     val pk = Mnesia.store(Person("Jonas"))
     val jonas = Mnesia.findByPK(pk).getOrElse(fail("failed findByPK")).asInstanceOf[Person]
     assert(jonas.name == "Jonas")
-  }    
-  
-  @Test 
-  def testFindByIndex = {      
+  }
+
+  @Test
+  def testFindByIndex = {
     Mnesia.store(Person("Jonas"))
     Mnesia.addIndex[String]("name", person, StringIndex.newInstance)
     val jonas = Mnesia.findByIndex(StringIndex("Jonas"), Column ("name", person)).getOrElse(fail("failed findByIndex")).asInstanceOf[Person]
     assert(jonas.name == "Jonas")
-  }    
-  
+  }
+
 }

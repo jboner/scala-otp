@@ -16,17 +16,17 @@ import org.scalatest._
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class GenericServerContainerSuite extends TestNGSuite {
-  
+
   var inner: GenericServerContainerActor = null
   var server: GenericServerContainer = null
   def createProxy(f: () => GenericServer) = { val server = new GenericServerContainer("server", f); server.setTimeout(100); server }
-  
+
   override protected def runTest(testName: String, reporter: Reporter, stopper: Stopper, properties: Map[String, Any]) {
     setup
     super.runTest(testName, reporter, stopper, properties)
   }
 
-  @BeforeMethod 
+  @BeforeMethod
   def setup = {
     inner = new GenericServerContainerActor
     server = createProxy(() => inner)
@@ -34,110 +34,110 @@ class GenericServerContainerSuite extends TestNGSuite {
     server.start
   }
 
-  @Test 
+  @Test
   def testInit = {
     server.init("testInit")
     Thread.sleep(100)
-    expect("initializing: testInit") { 
-      inner.log 
+    expect("initializing: testInit") {
+      inner.log
     }
   }
 
-  @Test 
+  @Test
   def testTerminateWithReason = {
     server.terminate("testTerminateWithReason", 100)
     Thread.sleep(100)
-    expect("terminating: testTerminateWithReason") { 
-      inner.log 
+    expect("terminating: testTerminateWithReason") {
+      inner.log
     }
   }
 
-  @Test 
+  @Test
   def test_bang_1 = {
     server ! OneWay
     Thread.sleep(100)
-    expect("got a oneway") { 
-      inner.log 
+    expect("got a oneway") {
+      inner.log
     }
   }
 
-  @Test 
+  @Test
   def test_bang_2 = {
     server ! Ping
     Thread.sleep(100)
-    expect("got a ping") { 
-      inner.log 
+    expect("got a ping") {
+      inner.log
     }
   }
 
-  @Test 
+  @Test
   def test_bangbangbang = {
     expect("pong") {
       (server !!! Ping).getOrElse("nil")
     }
-    expect("got a ping") { 
-      inner.log 
+    expect("got a ping") {
+      inner.log
     }
   }
- 
-  @Test 
+
+  @Test
   def test_bangquestion = {
     expect("pong") {
       val res: String = server !? Ping
       res
     }
-    expect("got a ping") { 
-      inner.log 
+    expect("got a ping") {
+      inner.log
     }
   }
- 
-  @Test 
+
+  @Test
   def test_bangbangbang_Timeout1 = {
-    expect("pong") { 
+    expect("pong") {
       (server !!! Ping).getOrElse("nil")
     }
-    expect("got a ping") { 
-      inner.log 
+    expect("got a ping") {
+      inner.log
     }
   }
 
-  @Test 
+  @Test
   def test_bangbangbang_Timeout2 = {
-    expect("error handler") { 
+    expect("error handler") {
       server !!! (OneWay, "error handler")
     }
-    expect("got a oneway") { 
-      inner.log 
+    expect("got a oneway") {
+      inner.log
     }
   }
 
-  @Test 
+  @Test
   def test_bangbangbang_GetFutureTimeout1 = {
     val future = server !! Ping
     future.receiveWithin(100) match {
       case None => fail("timed out") // timed out
-      case Some(reply) =>     
-        expect("got a ping") { 
-          inner.log 
+      case Some(reply) =>
+        expect("got a ping") {
+          inner.log
         }
         assert("pong" === reply)
     }
   }
 
-  @Test 
+  @Test
   def test_bangbangbang_GetFutureTimeout2 = {
     val future = server !! OneWay
     future.receiveWithin(100) match {
-      case None => 
-        expect("got a oneway") { 
-          inner.log 
+      case None =>
+        expect("got a oneway") {
+          inner.log
         }
-      case Some(reply) =>     
+      case Some(reply) =>
         fail("expected a timeout, got Some(reply)")
     }
   }
 
-  @Test 
+  @Test
   def testHotSwap = {
     // using base
     expect("pong") {
@@ -148,23 +148,23 @@ class GenericServerContainerSuite extends TestNGSuite {
     server.hotswap(Some({
       case Ping => reply("hotswapped pong")
     }))
-    expect("hotswapped pong") { 
+    expect("hotswapped pong") {
       (server !!! Ping).getOrElse("nil")
     }
   }
- 
-  @Test 
+
+  @Test
   def testDoubleHotSwap = {
     // using base
-    expect("pong") { 
+    expect("pong") {
       (server !!! Ping).getOrElse("nil")
     }
-   
+
     // hotswapping
     server.hotswap(Some({
       case Ping => reply("hotswapped pong")
     }))
-    expect("hotswapped pong") { 
+    expect("hotswapped pong") {
       (server !!! Ping).getOrElse("nil")
     }
 
@@ -172,16 +172,16 @@ class GenericServerContainerSuite extends TestNGSuite {
     server.hotswap(Some({
       case Ping => reply("hotswapped pong again")
     }))
-    expect("hotswapped pong again") { 
+    expect("hotswapped pong again") {
       (server !!! Ping).getOrElse("nil")
     }
   }
 
 
-  @Test 
+  @Test
   def testHotSwapReturnToBase = {
     // using base
-    expect("pong") { 
+    expect("pong") {
       (server !!! Ping).getOrElse("nil")
     }
 
@@ -189,13 +189,13 @@ class GenericServerContainerSuite extends TestNGSuite {
     server.hotswap(Some({
       case Ping => reply("hotswapped pong")
     }))
-    expect("hotswapped pong") { 
+    expect("hotswapped pong") {
       (server !!! Ping).getOrElse("nil")
     }
 
     // restoring original base
     server.hotswap(None)
-    expect("pong") { 
+    expect("pong") {
       (server !!! Ping).getOrElse("nil")
     }
   }
@@ -204,7 +204,7 @@ class GenericServerContainerSuite extends TestNGSuite {
 
 class GenericServerContainerActor extends GenericServer  {
   var log = ""
-  
+
   override def body: PartialFunction[Any, Unit] = {
     case Ping =>
       log = "got a ping"
