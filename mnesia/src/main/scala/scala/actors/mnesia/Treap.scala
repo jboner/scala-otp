@@ -27,7 +27,7 @@ class Treap[A <% Ordered[A], B <: AnyRef](val root: TreapNode[A, B])
      with immutable.SortedMap[A, B]
 {
   def this() = this(TreapEmptyNode[A, B])
-  
+
   def mkTreap(r: TreapNode[A, B]): Treap[A, B] = new Treap(r)
   
   def mkLeaf(k: A, v: B): TreapNode[A, B] =

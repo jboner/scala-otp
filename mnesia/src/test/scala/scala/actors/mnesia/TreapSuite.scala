@@ -23,7 +23,7 @@ class TreapSuite extends TestNGSuite {
   def setup = {
   }
  
-  @Test 
+  //@Test 
   def testTreapOperations= {
     // ============================
     // ===== treap operations =====
@@ -107,7 +107,7 @@ class TreapSuite extends TestNGSuite {
     assert(true === true)
   }
   
-  @Test 
+  //@Test 
   def testRangeOperations= {
     // ============================
     // ===== range operations =====
