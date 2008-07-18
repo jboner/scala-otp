@@ -10,3 +10,4 @@ out/
 *.bat
 etags
 TAGS
+.DS_Store
