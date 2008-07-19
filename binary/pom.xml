@@ -10,7 +10,7 @@
   <name>Scala Binary Module</name>
   <description>Implements an Erlang-style immutable Binary type. This type can be used as a safer alternative to byte arrays.</description> 
 
-  <version>0.1</version>
+  <version>0.1-SNAPSHOT</version>
   <inceptionYear>2008</inceptionYear>
 
   <parent>

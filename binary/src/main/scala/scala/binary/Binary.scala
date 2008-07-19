@@ -9,64 +9,67 @@ package scala.binary
 object Binary {
 
   /**
+   * Gets a Binary containing no bytes.
+   */
+  def empty: Binary = Binary0
+
+  /**
+   * Creates a Binary containing the given bytes.
+   */
+  //def apply(bytes: Byte*): Binary = this(bytes.asInstanceOf[RandomAccessSeq[Byte]], 0, bytes.length, false)
+
+  /**
    * Creates a Binary containing a copy of the given bytes.
    */
-  def apply(bytes: Array[Byte]): Binary = this(bytes, 0, bytes.length)
+  def apply(bytes: RandomAccessSeq[Byte]): Binary = this(bytes, 0, bytes.length, true)
 
   /**
    * Creates a Binary containing a copy of the given bytes in the
    * given range.
    */
-  def apply(bytes: Array[Byte], offset: Int, length: Int): Binary = {
-    val small = makeSmallCopy(bytes, offset, length)
-    if (small.isDefined) return small.get
-    val copy = new Array[Byte](length)
-    Array.copy(bytes, offset, copy, 0, length)
-    new ArrayBinary(copy)
-  }
+  def apply(bytes: RandomAccessSeq[Byte], offset: Int, length: Int): Binary = this(bytes, offset, length, true)
 
   /**
-   * Attempt to create a small Binary from the given bytes. This
-   * operation may fail (return None), in which case the Binary will
-   * have to be created with an alternative method.
+   * Creates a Binary containing a copy of the given bytes in the
+   * given range.
    */
-  private def makeSmallCopy(bytes: Array[Byte], offset: Int, length: Int): Option[Binary] =
+  private[scala] def apply(bytes: RandomAccessSeq[Byte], offset: Int, length: Int, makeCopy: Boolean): Binary = {
     length match {
-      case 0 => Some(new Binary0)
-      case 1 => Some(new Binary1(
+      case 0 => Binary0
+      case 1 => new Binary1(
         bytes(offset)
-      ))
-      case 2 => Some(new Binary2(
+      )
+      case 2 => new Binary2(
         bytes(offset),
         bytes(offset+1)
-      ))
-      case 3 => Some(new Binary3(
+      )
+      case 3 => new Binary3(
         bytes(offset),
         bytes(offset+1),
         bytes(offset+2)
-      ))
-      case 4 => Some(new Binary4(
+      )
+      case 4 => new Binary4(
         bytes(offset),
         bytes(offset+1),
         bytes(offset+2),
         bytes(offset+3)
-      ))
-      case 5 => Some(new Binary5(
+      )
+      case 5 => new Binary5(
         bytes(offset),
         bytes(offset+1),
         bytes(offset+2),
         bytes(offset+3),
         bytes(offset+4)
-      ))
-      case 6 => Some(new Binary6(
+      )
+      case 6 => new Binary6(
         bytes(offset),
         bytes(offset+1),
         bytes(offset+2),
         bytes(offset+3),
         bytes(offset+4),
         bytes(offset+5)
-      ))
-      case 7 => Some(new Binary7(
+      )
+      case 7 => new Binary7(
         bytes(offset),
         bytes(offset+1),
         bytes(offset+2),
@@ -74,8 +77,8 @@ object Binary {
         bytes(offset+4),
         bytes(offset+5),
         bytes(offset+6)
-      ))
-      case 8 => Some(new Binary8(
+      )
+      case 8 => new Binary8(
         bytes(offset),
         bytes(offset+1),
         bytes(offset+2),
@@ -84,9 +87,34 @@ object Binary {
         bytes(offset+5),
         bytes(offset+6),
         bytes(offset+7)
-      ))
-      case _ => None
+      )
+      case _ => bytes match {
+        case binary: Binary => {
+          if (offset == 0 && length == binary.length) {
+            binary
+          } else {
+            val copy = new Array[Byte](length)
+            binary.copyToByteArray(offset, copy, 0, length)
+            new ArrayBinary(copy)
+          }
+        }
+        case _: Array[_] => {
+          //val wrapped = if (makeCopy) {
+            val copy = new Array[Byte](length)
+            Array.copy(bytes, offset, copy, 0, length)
+            //copy
+          //} else {
+            //bytes.asInstanceOf[Array[Byte]]
+          //}
+          new ArrayBinary(copy)
+        }
+        case _ => {
+          val copy = bytes.slice(offset, offset + length).toArray
+          new ArrayBinary(copy)
+        }
+      }
     }
+  }
 
 }
 
@@ -133,17 +161,16 @@ trait Binary extends RandomAccessSeq[Byte] {
       i += 1
     }
     true
-  }
+  }  
 
   /**
    * Append another Binary to this Binary, returning a new Binary as
    * the result.
    */
   def ++(other: Binary): Binary = {
-    // FIXME: Needs optimization:
-    // - Copy into BinaryX, if length <= 8.
-    // - Try to keep the tree balanced (minimize average byte depth?).
-    new CompositeBinary(this, other)
+    // FIXME: Try to keep the tree balanced?
+    val composite = new CompositeBinary(this, other)
+    Binary(composite, 0, composite.length, false)
   }
 
   /**
@@ -151,11 +178,8 @@ trait Binary extends RandomAccessSeq[Byte] {
    * result.
    */
   override def slice(from: Int, until: Int): Binary = {
-    // FIXME: Optimize.
-    val sliceLength = until - from
-    val array = new Array[Byte](sliceLength)
-    copyToByteArray(from, array, 0, sliceLength)
-    Binary(array)
+    if (from == 0 && until == length) this
+    else Binary(this, from, until - from, false)
   }
 
   /**

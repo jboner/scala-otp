@@ -1,8 +1,8 @@
-target/
+target
 *.ipr
 *.iws
 *.*~
-#*#
+*#*#
 *.cmd
 *.sh
 *.bat
