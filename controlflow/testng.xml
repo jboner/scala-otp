@@ -1,0 +1,9 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="All Flow Control Tests" verbose="1">
+  <test name="Binary">
+    <classes>
+      <class name="scala.actors.controlflow.ControlFlowSuite" />
+    </classes>
+  </test>
+</suite>

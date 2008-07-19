@@ -1,0 +1,52 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>scala.actors.io</groupId>
+  <artifactId>scala-io</artifactId>
+
+  <name>Scala Actors IO Module</name>
+  <description>Supports non-blocking IO using actors.</description> 
+
+  <version>0.1-SNAPSHOT</version>
+  <inceptionYear>2008</inceptionYear>
+
+  <parent>
+    <groupId>scala.actors</groupId>
+    <artifactId>scala-otp</artifactId>
+    <version>0.1-SNAPSHOT</version>
+  </parent>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>scala.binary</groupId>
+      <artifactId>scala-binary</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>scala.actors.controlflow</groupId>
+      <artifactId>scala-controlflow</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.scalatest</groupId>
+      <artifactId>scalatest</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <scope>test</scope>
+      <classifier>jdk15</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.scalacheck</groupId>
+      <artifactId>scalacheck</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>
