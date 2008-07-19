@@ -15,7 +15,7 @@ import org.slf4j.{Logger, LoggerFactory}
 class SystemFailure(cause: Throwable) extends RuntimeException(cause)
 
 /**
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 trait Logging {
   val log = LoggerFactory.getLogger(this.getClass)

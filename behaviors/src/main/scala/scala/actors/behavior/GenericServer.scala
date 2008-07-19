@@ -21,7 +21,7 @@ case class HotSwap(code: Option[PartialFunction[Any, Unit]]) extends GenericServ
 /**
  * Base trait for all user-defined servers/actors.
  * 
- * @author Jonas Bon&#233;r [http://jonasboner.com]
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 trait GenericServer extends Actor {
 

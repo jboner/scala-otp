@@ -11,6 +11,9 @@ import org.scalatest._
 
 import scala.actors.Actor._
 
+/**
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
+ */
 class GenericServerSuite extends TestNGSuite {
   @Test 
   def testSendRegularMessage = {

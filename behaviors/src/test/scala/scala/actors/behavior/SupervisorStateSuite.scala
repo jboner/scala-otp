@@ -11,6 +11,9 @@ import org.scalatest._
 
 import scala.actors.Actor._
 
+/**
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
+ */
 class SupervisorStateSuite extends TestNGSuite {
   val dummyActor = new GenericServer { override def body: PartialFunction[Any, Unit] = { case _ => }}
   val newDummyActor = () => dummyActor
@@ -29,15 +32,15 @@ class SupervisorStateSuite extends TestNGSuite {
     object factory extends SupervisorFactory {
       override def getSupervisorConfig: SupervisorConfig = {
         SupervisorConfig(
-          RestartStrategy(AllForOne, 3, 10000),
+          RestartStrategy(AllForOne, 3, 100),
           Worker(
             proxy,
-            LifeCycle(Permanent, 1000))
+            LifeCycle(Permanent, 100))
           :: Nil)
       }
     }
     supervisor = factory.newSupervisor
-    state = new SupervisorState(supervisor, new AllForOneStrategy(3, 10000)) 
+    state = new SupervisorState(supervisor, new AllForOneStrategy(3, 100)) 
   }
  
   @Test 

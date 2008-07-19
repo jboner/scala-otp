@@ -12,11 +12,14 @@ import org.testng.annotations.{Test, BeforeMethod}
 import org.scalatest.testng.TestNGSuite
 import org.scalatest._
 
+/**
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
+ */
 class GenericServerContainerSuite extends TestNGSuite {
   
   var inner: GenericServerContainerActor = null
   var server: GenericServerContainer = null
-  def createProxy(f: () => GenericServer) = new GenericServerContainer("server", f)
+  def createProxy(f: () => GenericServer) = { val server = new GenericServerContainer("server", f); server.setTimeout(100); server }
   
   override protected def runTest(testName: String, reporter: Reporter, stopper: Stopper, properties: Map[String, Any]) {
     setup
@@ -42,7 +45,7 @@ class GenericServerContainerSuite extends TestNGSuite {
 
   @Test 
   def testTerminateWithReason = {
-    server.terminate("testTerminateWithReason", 1000)
+    server.terminate("testTerminateWithReason", 100)
     Thread.sleep(100)
     expect("terminating: testTerminateWithReason") { 
       inner.log 
