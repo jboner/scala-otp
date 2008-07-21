@@ -84,27 +84,27 @@ object Mnesia extends Logging {
 
   def remove(pk: PK) = mnesia ! RemoveByPK(pk)
 
-  def findByPK(pk: PK): Option[AnyRef] = {
+  def findByPK[T <: AnyRef](pk: PK): Option[T] = {
     val result: Option[Entity] = mnesia !!! FindByPK(pk) 
     result match {
-      case Some(Entity(entity)) => entity
+      case Some(Entity(entity)) => entity.asInstanceOf[Option[T]]
       case None => throw new MnesiaException("Could not find entity by primary key <" + pk + ">")  
     }
   }
 
   // FIXME: should be able to look up column from index and not have to specific both
-  def findByIndex(index: Index, column: Column): Option[AnyRef] = {
+  def findByIndex[T <: AnyRef](index: Index, column: Column): Option[T] = {
     val result: Option[Entity] = mnesia !!! FindByIndex(index, column) 
     result match {
-      case Some(Entity(entity)) => entity
+      case Some(Entity(entity)) => entity.asInstanceOf[Option[T]]
       case None => throw new MnesiaException("Could not find entity by index <" + index + ">")  
     }
  } 
  
-  def findAll(table: Class[_]): List[AnyRef] = {
+  def findAll[T <: AnyRef](table: Class[_]): List[T] = {
     val result: Option[Entities] = mnesia !!! FindAll(table) 
     result match {
-      case Some(Entities(entities)) => entities
+      case Some(Entities(entities)) => entities.asInstanceOf[List[T]]
       case None => throw new MnesiaException("Could not find all entities for table <" + table.getName + ">")  
     }
   }
@@ -402,7 +402,7 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
 
   def findAll(table: Class[_]): List[AnyRef] = dbLock.withReadLock {
     ensureTableExists(table)
-    db(PK.getPrimaryKeyColumnFor(table)).elements.toList
+    db(PK.getPrimaryKeyColumnFor(table)).values.toList
   }
 
   def clear = dbLock.withWriteLock { indexLock.withWriteLock {
