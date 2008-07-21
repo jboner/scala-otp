@@ -354,7 +354,6 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     schema(table).indices.foreach { item =>
       val (column, field, indexFactory) = item 
       val index = createIndexFor(field, entity, indexFactory)
-      if (!indices.contains(column)) indices += column -> new Treap[Index, AnyRef]()
       indices(column).upd(index, entity)
     }
     pk
@@ -411,6 +410,10 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     identityMap.clear
     indices.clear
     for (table <- schema.values) db += PK.getPrimaryKeyColumnFor(table.clazz) -> new Treap[PK, AnyRef]    
+    for { 
+      table <- schema.values
+      (column, _, _) <- table.indices
+    } indices += column -> new Treap[Index, AnyRef]()
   }}
 
   def changeSchema(schema: String) = {
