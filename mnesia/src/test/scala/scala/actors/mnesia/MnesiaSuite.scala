@@ -42,7 +42,7 @@ class MnesiaSuite extends TestNGSuite {
 
   @Test
   def testAddIndexToEmptyTable = {
-    Mnesia.addIndex[String]("name", person, StringIndex.newInstance)
+    Mnesia.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
   }
 
   @Test
@@ -50,7 +50,7 @@ class MnesiaSuite extends TestNGSuite {
     Mnesia.store(Person("Jonas"))
     Mnesia.store(Person("Sara"))
     Mnesia.store(Person("Kalle"))
-    Mnesia.addIndex[String]("name", person, StringIndex.newInstance)
+    Mnesia.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
   }
 
   @Test
@@ -89,8 +89,10 @@ class MnesiaSuite extends TestNGSuite {
 
     // remove by instance
     Mnesia.remove(Person("Kalle"))
-    val persons = Mnesia findAll person
+    val persons = (Mnesia findAll person).asInstanceOf[List[Person]]
     assert(persons.size === 2)
+    assert(persons(0).name === "Jonas")
+    assert(persons(1).name === "Sara")
 
     assert(true === true)
   }
@@ -105,7 +107,7 @@ class MnesiaSuite extends TestNGSuite {
   @Test
   def testFindByIndex = {
     Mnesia.store(Person("Jonas"))
-    Mnesia.addIndex[String]("name", person, StringIndex.newInstance)
+    Mnesia.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
     val jonas = Mnesia.findByIndex(StringIndex("Jonas"), Column ("name", person)).getOrElse(fail("failed findByIndex")).asInstanceOf[Person]
     assert(jonas.name == "Jonas")
   }

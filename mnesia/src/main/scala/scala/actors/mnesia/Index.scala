@@ -18,17 +18,6 @@ abstract case class Index extends Ordered[Index] {
  */
 case class StringIndex(override val value: String) extends Index {
   type T = String
-  def compare(that: StringIndex): Int = this.hashCode - that.hashCode
-  override def hashCode: Int = {
-    var result = HashCode.SEED
-    result = HashCode.hash(result, value)
-    result
-  }
+  override def hashCode: Int = HashCode.hash(HashCode.SEED, value)
 }
 
-/**
- * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
- */
-object StringIndex {
-  def newInstance: String => Index = (value: String) => StringIndex(value.asInstanceOf[String])
-}
