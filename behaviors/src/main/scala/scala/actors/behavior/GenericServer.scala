@@ -14,6 +14,7 @@ import scala.actors.behavior.Helpers._
 
 sealed abstract class GenericServerMessage
 case class Init(config: AnyRef) extends GenericServerMessage
+case class ReInit(config: AnyRef) extends GenericServerMessage
 case class Shutdown(reason: AnyRef) extends GenericServerMessage
 case class Terminate(reason: AnyRef) extends GenericServerMessage
 case class HotSwap(code: Option[PartialFunction[Any, Unit]]) extends GenericServerMessage
@@ -50,6 +51,12 @@ trait GenericServer extends Actor {
   def init(config: AnyRef) {}
 
   /**
+   * Callback method that is called during reinitialization after a server crash.
+   * To be implemented by subclassing server.
+   */
+  def reinit(config: AnyRef) {}
+
+  /**
    * Callback method that is called during termination.
    * To be implemented by subclassing server.
    */
@@ -62,9 +69,10 @@ trait GenericServer extends Actor {
   private var hotswap: Option[PartialFunction[Any, Unit]] = None
 
   private val genericBase: PartialFunction[Any, Unit] = {
-    case Init(config) => init(config)
-    case HotSwap(code) => hotswap = code
-    case Shutdown(reason) => shutdown(reason); reply('success)
+    case Init(config) =>      init(config)
+    case ReInit(config) =>    reinit(config)
+    case HotSwap(code) =>     hotswap = code
+    case Shutdown(reason) =>  shutdown(reason); reply('success)
     case Terminate(reason) => exit(reason)
   }
 }
@@ -193,6 +201,24 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   }
 
   /**
+   * Initializes the server by sending a Init(config) message.
+   */
+  def init(config: AnyRef) = lock.withWriteLock {
+    currentConfig = Some(config)
+    server ! Init(config)
+  }
+
+  /**
+   * Re-initializes the server by sending a ReInit(config) message with the most recent configuration.
+   */
+  def reinit = lock.withWriteLock {
+    currentConfig match {
+      case Some(config) => server ! ReInit(config)
+      case None => {}
+    }
+  }
+
+  /**
    * Hotswaps the server body by sending it a HotSwap(code) with the new code
    * block (PartialFunction) to be executed.
    */
@@ -229,14 +255,6 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
   private[behavior] def start = lock.withReadLock { server.start }
 
   /**
-   * Initializes the server by sending a Init(config) message.
-   */
-  private[behavior] def init(config: AnyRef) = lock.withWriteLock {
-    currentConfig = Some(config)
-    server ! Init(config)
-  }
-
-  /**
    * Terminates the server with a reason by sending a Terminate(Some(reason)) message.
    */
   private[behavior] def terminate(reason: AnyRef) = lock.withReadLock { server ! Terminate(reason) }
@@ -257,16 +275,11 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
     server ! Terminate(reason)
   }
 
-  private[behavior] def reconfigure(reason: AnyRef, restartedServer: GenericServer, supervisor: Supervisor) = {
-    lock.withWriteLock {
-      server = restartedServer
-      currentConfig match {
-        case Some(config) => server ! Init(config)
-        case None => {}
-      }
-    }
+  private[behavior] def reconfigure(reason: AnyRef, restartedServer: GenericServer, supervisor: Supervisor) = lock.withWriteLock {
+    server = restartedServer
+    reinit
   }
-
+  
   private[behavior] def getServer: GenericServer = server
 }
 
