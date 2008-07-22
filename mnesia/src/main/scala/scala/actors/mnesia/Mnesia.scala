@@ -59,6 +59,27 @@ class MnesiaException(val message: String) extends RuntimeException {
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 object Mnesia extends Logging {
+  
+  val MNESIA_SERVER_NAME = "mnesia"
+  val SHUTDOWN_TIME = 1000
+  val RESTART_WITHIN_TIME_RANGE = 1000
+  val MAX_NUMBER_OF_RESTART_BEFORE_GIVING_UP = 5
+
+  private val mnesia = new GenericServerContainer(MNESIA_SERVER_NAME, () => new Mnesia)
+  mnesia.setTimeout(1000)
+  
+  private object supervisorFactory extends SupervisorFactory {
+    override def getSupervisorConfig: SupervisorConfig = {
+      SupervisorConfig(
+        RestartStrategy(OneForOne, MAX_NUMBER_OF_RESTART_BEFORE_GIVING_UP, RESTART_WITHIN_TIME_RANGE),
+        Worker(
+          mnesia,
+          LifeCycle(Permanent, SHUTDOWN_TIME))
+        :: Nil)
+    }
+  }
+  
+  private val supervisor = supervisorFactory.newSupervisor
 
   def start = supervisor ! Start
   
@@ -92,12 +113,11 @@ object Mnesia extends Logging {
     }
   }
 
-  // FIXME: should be able to look up column from index and not have to specific both
-  def findByIndex[T <: AnyRef](index: Index, column: Column): Option[T] = {
-    val result: Option[Entity] = mnesia !!! FindByIndex(index, column) 
+  def findByIndex[T <: AnyRef](index: Index, column: Column): List[T] = {
+    val result: Option[Entities] = mnesia !!! FindByIndex(index, column) 
     result match {
-      case Some(Entity(entity)) => entity.asInstanceOf[Option[T]]
-      case None => throw new MnesiaException("Could not find entity by index <" + index + ">")  
+      case Some(Entities(entities)) => entities.asInstanceOf[List[T]]
+      case None => throw new MnesiaException("Could not find any entities by index <" + index + ">")  
     }
  } 
  
@@ -110,32 +130,16 @@ object Mnesia extends Logging {
   }
 
   def clear = {
-    val result: MnesiaMessage = mnesia !? Clear
+    val result: MnesiaMessage = mnesia !!! (Clear, throw new MnesiaException("Timed out while trying to clear the database"), 10000)
     result match { 
       case Failure(_, Some(cause)) => throw cause
       case _ => {}
     }
   }
 
-  def changeSchema(schema: String) = mnesia ! ChangeSchema(schema)
+  def changeSchema(schemaName: String) = mnesia ! ChangeSchema(schemaName)
 
-  val MNESIA_SERVER_NAME = "mnesia"
-
-  private val mnesia = new GenericServerContainer(MNESIA_SERVER_NAME, () => new Mnesia)
-  mnesia.setTimeout(1000)
-  
-  private val supervisor = supervisorFactory.newSupervisor
-
-  private object supervisorFactory extends SupervisorFactory {
-    override def getSupervisorConfig: SupervisorConfig = {
-      SupervisorConfig(
-        RestartStrategy(OneForOne, 5, 1000),
-        Worker(
-          mnesia,
-          LifeCycle(Permanent, 100))
-        :: Nil)
-    }
-  }
+  def init(schema: AnyRef) = mnesia.init(schema)
 }
 
 /**
@@ -180,9 +184,9 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
   private var currentSchema = DEFAULT_SCHEMA
 
   // FIXME: update to ConcurrentHashMaps
-  private val schema =      Map[Class[_]  , Table]()
+  private var schema =      Map[Class[_], Table]()
   private val db =          Map[Column, Treap[PK, AnyRef]]()
-  private val indices =     Map[Column, Treap[Index, AnyRef]]()
+  private val indices =     Map[Column, Treap[Index, Map[PK, AnyRef]]]()
   private val identityMap = Map[AnyRef, PK]()
   
   private val dbLock =      new ReadWriteLock
@@ -258,7 +262,7 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     case FindByIndex(index, column) => 
       log.debug("Finding entity by its index <{}>", index)
       try {
-        reply(Entity(findByIndex(index, column)))    
+        reply(Entities(findByIndex(index, column)))    
       } catch { 
         case e => log.error("Could not find entity by index <" + index + "> due to: " + e.getMessage)
         e.printStackTrace
@@ -300,11 +304,20 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
       }
   }
 
+  override def reinit(config: AnyRef) {
+    (new Exception("bla")).printStackTrace
+    log.info("Database schema <{}> successfully reinitialized after server crash", currentSchema)
+    schema = config.asInstanceOf[Map[Class[_], Table]]
+    
+    // TODO: read in replicated state after server crash
+  }
+
   def createTable(table: Class[_]) = {
     val columns: List[Column] = for (field <- table.getDeclaredFields.toList if field.getName != "$outer") 
                                 yield Column(field.getName, field.getType)
+                                
     log.info("Creating table <{}> with columns <{}>", table.getName, columns)
-
+    
     if (schema.contains(table)) throw new IllegalArgumentException("Table <" + table.getName + "> already exists")
     schema += table -> Table(table, columns, Nil)
 
@@ -312,6 +325,7 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
       PK.init(table)
       db += PK.getPrimaryKeyColumnFor(table) -> new Treap[PK, AnyRef]
     }
+    Mnesia.init(schema) // save latest schema in server container
   }
 
   def addIndex(name: String, table: Class[_], indexFactory: (Any) => Index) = 
@@ -320,12 +334,18 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     field.setAccessible(true)
 
     val currentDB = db(PK.getPrimaryKeyColumnFor(table))
-    val emptyTreap = new Treap[Index, AnyRef]()
+    val emptyTreap = new Treap[Index, Map[PK, AnyRef]]()
 
-    val fullTreap = currentDB.elements.foldLeft(emptyTreap) { (treap, entry) => {
+    val fullTreap = currentDB.elements.foldLeft(emptyTreap) { (indexMap, entry) => {
       val entity = entry._2
       val index = createIndexFor(field, entity, indexFactory)
-      treap.upd(index, entity)
+      indexMap.get(index) match {
+        case Some(entities) => 
+          entities += getPKFor(entity) -> entity
+          indexMap
+        case None => 
+          indexMap.upd(index, Map[PK, AnyRef](getPKFor(entity) -> entity))
+      }
     }}
     
     val column = Column(name, table)
@@ -337,11 +357,12 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     val schemaTable = schema(table)
     schemaTable.indices = (column, field, indexFactory) :: schemaTable.indices
     
+    Mnesia.init(schema) // save latest schema in server container
     log.info("Index <{}> for table <{}> has been compiled", name, table.getName)
   }}
 
   def store(entity: AnyRef): PK = dbLock.withWriteLock {
-      val table = entity.getClass
+    val table = entity.getClass
     ensureTableExists(table)
 
     val pk = getPKFor(entity)
@@ -350,11 +371,17 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     db(pkIndex) = db(pkIndex).upd(pk, entity)
 
     // update indices
-    // FIXME: add list entries to cover multiple index with same hash (eg same value)
     schema(table).indices.foreach { item =>
       val (column, field, indexFactory) = item 
+      val indexMap = indices(column)
       val index = createIndexFor(field, entity, indexFactory)
-      indices(column).upd(index, entity)
+      indexMap.get(index) match {
+        case Some(entities: Map[PK, AnyRef]) => 
+          entities += getPKFor(entity) -> entity
+        case None => 
+          addIndex(column.name, column.table, indexFactory)
+          indexMap.upd(index, Map[PK, AnyRef](getPKFor(entity) -> entity))
+      }
     }
     pk
   }
@@ -392,12 +419,10 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     db(PK.getPrimaryKeyColumnFor(pk.table)).get(pk)
   }
 
-  // FIXME: should be able to look up column from index and not have to specific both
-  // FIXME: need to return a List in case we have more than one match
-  def findByIndex(index: Index, column: Column): Option[AnyRef] = indexLock.withReadLock {
+  def findByIndex(index: Index, column: Column): List[AnyRef] = indexLock.withReadLock {
     ensureTableExists(column.table)
     ensureIndexExists(column)
-    indices(column).get(index)
+    indices(column).get(index).getOrElse(throw new IllegalStateException("No such index <" + index + "> for column <" + column + ">")).values.toList
   }
 
   def findAll(table: Class[_]): List[AnyRef] = dbLock.withReadLock {
@@ -412,8 +437,10 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     for (table <- schema.values) db += PK.getPrimaryKeyColumnFor(table.clazz) -> new Treap[PK, AnyRef]    
     for { 
       table <- schema.values
-      (column, _, _) <- table.indices
-    } indices += column -> new Treap[Index, AnyRef]()
+      (column, field, indexFactory) <- table.indices
+    } {
+      indices += column -> new Treap[Index, Map[PK, AnyRef]]()
+    }
   }}
 
   def changeSchema(schema: String) = {

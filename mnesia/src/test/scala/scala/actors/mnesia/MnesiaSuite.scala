@@ -4,6 +4,8 @@
 
 package scala.actors.mnesia
 
+import scala.actors.mnesia.Index._
+
 import org.testng.annotations.{Test, BeforeMethod}
 
 import org.scalatest.testng.TestNGSuite
@@ -115,7 +117,8 @@ class MnesiaSuite extends TestNGSuite {
   def testFindByIndex = {
     Mnesia.store(Person("Jonas"))
     Mnesia.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
-    val jonas: Person = Mnesia.findByIndex(StringIndex("Jonas"), Column ("name", person)).getOrElse(fail("failed findByIndex"))
-    assert(jonas.name == "Jonas")
+    val entities: List[Person] = Mnesia.findByIndex("Jonas", Column ("name", person))
+    assert(entities.size == 1)
+    assert(entities(0).name == "Jonas")
   }
 }
