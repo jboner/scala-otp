@@ -28,9 +28,8 @@ case class CreateTable(table: Class[_]) extends MnesiaMessage
 @serializable
 case class AddIndex(name: String, table: Class[_], indexFactory: (Any) => Index) extends MnesiaMessage
 @serializable
-case class ChangeSchema(schema: String) extends MnesiaMessage
-@serializable
 case object Clear extends MnesiaMessage
+case class ChangeSchema(schema: String) extends MnesiaMessage
 
 @serializable
 case class RemoveByEntity(entity: AnyRef) extends MnesiaMessage
@@ -40,28 +39,24 @@ case class RemoveByPK(pk: PK) extends MnesiaMessage
 /** Reply message is PrimaryKey(..) */
 @serializable
 case class Store(entity: AnyRef) extends MnesiaMessage
+
 /** Reply message is Entity(..) */
-@serializable
 case class FindByPK(pk: PK) extends MnesiaMessage
-/** Reply message is Entity(..) */
-@serializable
-case class FindByIndex(index: Index, column: Column) extends MnesiaMessage
+
 /** Reply message is Entities(..) */
-@serializable
+case class FindByIndex(index: Index, column: Column) extends MnesiaMessage
+
+/** Reply message is Entities(..) */
 case class FindAll(table: Class[_]) extends MnesiaMessage
 
-@serializable
 case class Replication(message: MnesiaMessage) extends MnesiaMessage
 case class AddReplica(replica: Actor) extends MnesiaMessage
 
 //-----------------------
 // --- REPLY MESSAGES ---
 //-----------------------
-@serializable
 case class PrimaryKey(pk: PK) extends MnesiaMessage
-@serializable
 case class Entity(entity: Option[AnyRef]) extends MnesiaMessage
-@serializable
 case class Entities(list: List[AnyRef]) extends MnesiaMessage
 
 @serializable
