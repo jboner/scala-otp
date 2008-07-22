@@ -7,7 +7,9 @@ package scala.actors.mnesia
 import scala.actors.Actor._
 import scala.actors.behavior._
 import scala.actors.behavior.Helpers._
+
 import scala.collection.mutable.Map
+import scala.collection.mutable.ArrayBuffer
 
 import java.util.concurrent.atomic.AtomicLong
 import java.lang.reflect.Field
@@ -15,41 +17,62 @@ import java.lang.reflect.Field
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
+@serializable
 sealed abstract case class MnesiaMessage
 
 // ------------------------
 // --- REQUEST MESSAGES ---
 // ------------------------
+@serializable
 case class CreateTable(table: Class[_]) extends MnesiaMessage
+@serializable
 case class AddIndex(name: String, table: Class[_], indexFactory: (Any) => Index) extends MnesiaMessage
+@serializable
 case class ChangeSchema(schema: String) extends MnesiaMessage
+@serializable
 case object Clear extends MnesiaMessage
 
+@serializable
 case class RemoveByEntity(entity: AnyRef) extends MnesiaMessage
+@serializable
 case class RemoveByPK(pk: PK) extends MnesiaMessage
 
 /** Reply message is PrimaryKey(..) */
+@serializable
 case class Store(entity: AnyRef) extends MnesiaMessage
 /** Reply message is Entity(..) */
+@serializable
 case class FindByPK(pk: PK) extends MnesiaMessage
 /** Reply message is Entity(..) */
+@serializable
 case class FindByIndex(index: Index, column: Column) extends MnesiaMessage
 /** Reply message is Entities(..) */
+@serializable
 case class FindAll(table: Class[_]) extends MnesiaMessage
+
+@serializable
+case class Replication(message: MnesiaMessage) extends MnesiaMessage
+case class AddReplica(replica: Actor) extends MnesiaMessage
 
 //-----------------------
 // --- REPLY MESSAGES ---
 //-----------------------
+@serializable
 case class PrimaryKey(pk: PK) extends MnesiaMessage
+@serializable
 case class Entity(entity: Option[AnyRef]) extends MnesiaMessage
+@serializable
 case class Entities(list: List[AnyRef]) extends MnesiaMessage
 
+@serializable
 case object Success extends MnesiaMessage
+@serializable
 case class Failure(message: String, cause: Option[Throwable]) extends MnesiaMessage
 
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
+@serializable
 class MnesiaException(val message: String) extends RuntimeException {
   override def getMessage: String = message
   override def toString: String = "scala.actors.mnesia.MnesiaException: " + message
@@ -137,6 +160,8 @@ object Mnesia extends Logging {
     }
   }
 
+  def addReplica(replica: Actor) = mnesia ! AddReplica(replica)
+
   def changeSchema(schemaName: String) = mnesia ! ChangeSchema(schemaName)
 
   def init(schema: AnyRef) = mnesia.init(schema)
@@ -145,6 +170,7 @@ object Mnesia extends Logging {
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
+@serializable
 abstract case class PK extends Ordered[PK] {
   val value: Long
   val table: Class[_]
@@ -154,6 +180,7 @@ abstract case class PK extends Ordered[PK] {
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
+@serializable
 case class Table(clazz: Class[_], columns: List[Column], var indices: List[Tuple3[Column, Field, (Any) => Index]]) {
   override def hashCode: Int = {
     var result = HashCode.SEED
@@ -166,6 +193,7 @@ case class Table(clazz: Class[_], columns: List[Column], var indices: List[Tuple
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
+@serializable
 case class Column(name: String, table: Class[_]) {
   override def hashCode: Int = {
     var result = HashCode.SEED
@@ -179,8 +207,8 @@ case class Column(name: String, table: Class[_]) {
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 private[mnesia] class Mnesia extends GenericServer with Logging {
+  
   val DEFAULT_SCHEMA = "default"
-
   private var currentSchema = DEFAULT_SCHEMA
 
   // FIXME: update to ConcurrentHashMaps
@@ -188,72 +216,91 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
   private val db =          Map[Column, Treap[PK, AnyRef]]()
   private val indices =     Map[Column, Treap[Index, Map[PK, AnyRef]]]()
   private val identityMap = Map[AnyRef, PK]()
-  
+  private val replicas =    new ArrayBuffer[Actor]
   private val dbLock =      new ReadWriteLock
   private val indexLock =   new ReadWriteLock  
 
   override def body: PartialFunction[Any, Unit] = {
+    case AddReplica(replica: Actor) => 
+      log.debug("Adding a new replica <{}>", replica)
+      replicas += replica
+      
+    case Replication(message: MnesiaMessage) => 
+      try { 
+        log.debug("Received replication message <{}>", message)
+        Actor.self.send(message, this)
+        reply(Success)
+      } catch { case e => 
+        log.error("Replication message could not be processed due to: {}", e.getMessage) 
+        reply(Failure(e.getMessage, Some(e)))
+      }
+      
     case CreateTable(table) => 
       log.info("Creating table <{}>", table)
       try { 
         createTable(table) 
       } catch { 
-        case e => log.error("Could not create table due to: " + e.getMessage)
+        case e => log.error("Could not create table due to: {}", e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e 
       }
-    
+      replicate(CreateTable(table))  
+      
     case AddIndex(name, table, indexFactory) => 
       log.info("Adding index <{}@{}>", name, table.getName)
       try {
         addIndex(name, table, indexFactory)
       } catch { 
-        case e => log.error("Could not create index due to: " + e.getMessage)
+        case e => log.error("Could not create index due to: {}", e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e 
       }
-    
+      replicate(AddIndex(name, table, indexFactory))
+          
     case Store(entity) => 
       log.debug("Storing entity <{}>", entity)
       try {  
         reply(PrimaryKey(store(entity)))
       } catch { 
-        case e => log.error("Could not store entity <" + entity + "> due to: " + e.getMessage)
+        case e => log.error("Could not store entity <{}> due to: {}", entity, e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e 
       }
-    
+      replicate(Store(entity))
+          
     case RemoveByEntity(entity) => 
       log.debug("Removing entity <{}>", entity)
       try {  
         remove(entity)
       } catch { 
-        case e => log.error("Could not remove entity <" + entity + "> due to: " + e.getMessage)
+        case e => log.error("Could not remove entity <{}> due to: {}", entity, e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e 
       }
+      replicate(RemoveByEntity(entity))
         
     case RemoveByPK(pk) => 
       log.debug("Removing entity with primary key <{}>", pk)
       try {
         remove(pk)
       } catch { 
-        case e => log.error("Could not remove entity <" + pk + "> due to: " + e.getMessage)
+        case e => log.error("Could not remove entity with primary key <{}> due to: {}", pk, e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e 
       }
+      replicate(RemoveByPK(pk))
     
     case FindByPK(pk) => 
       log.debug("Finding entity with primary key <{}>", pk)
       try {
         reply(Entity(findByPK(pk)))    
       } catch { 
-        case e => log.error("Could not find entity by primary key <" + pk + "> due to: " + e.getMessage)
+        case e => log.error("Could not find entity by primary key <{}> due to: {}", pk, e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e 
@@ -264,7 +311,7 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
       try {
         reply(Entities(findByIndex(index, column)))    
       } catch { 
-        case e => log.error("Could not find entity by index <" + index + "> due to: " + e.getMessage)
+        case e => log.error("Could not find entity by index <{}> due to: {}", index, e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e 
@@ -275,7 +322,7 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
       try {  
         reply(Entities(findAll(table)))    
       } catch { 
-        case e => log.error("Could not find all entities in table <" + table.getName + "> due to: " + e.getMessage)
+        case e => log.error("Could not find all entities in table <{}> due to: {}", table.getName, e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e 
@@ -286,7 +333,7 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
       try {  
         changeSchema(schema)
       } catch { 
-        case e => log.error("Could not change schema <" + schema + "> due to: " + e.getMessage)
+        case e => log.error("Could not change schema <{}> due to: {}", schema, e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e 
@@ -299,9 +346,10 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
         log.info("Database cleared successfully")
         reply(Success)
       } catch { case e => 
-        log.error("Database could not be cleared due to: " + e.getMessage) 
+        log.error("Database could not be cleared due to: {}", e.getMessage) 
         reply(Failure(e.getMessage, Some(e)))
       }
+      replicate(Clear)
   }
 
   override def reinit(config: AnyRef) {
@@ -448,9 +496,20 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     // FIXME: implement support for multiple schemas
   }
 
+  def replicate(message: MnesiaMessage) = 
+    for (replica <- replicas) {
+      // FIXME: change replication to async (just lazy now)
+      replica !? Replication(message) match {
+        case Success => log.debug("Replication message <{}> successfully delivered", message) 
+        case Failure => log.error("Replication message <{}> failed to be delivered", message)
+          // TODO: retry etc.
+      }
+    }
+   
   private def createIndexFor(field: Field, entity: AnyRef, indexFactory: (Any) => Index): Index = 
     indexFactory(field.get(entity))
   
+  // FIXME: should use reflection to retrieve the id field in the entity (dump the identityMap)
   private def getPKFor(entity: AnyRef): PK = {
     if (identityMap.contains(entity)) identityMap(entity)
     else {
@@ -472,6 +531,7 @@ private[mnesia] class Mnesia extends GenericServer with Logging {
     if (!identityMap.contains(entity)) throw new IllegalArgumentException("Entity [" + entity + "] is not managed")
   }
 
+  @serializable
   case class PKImpl private[Mnesia] (override val value: Long, override val table: Class[_]) extends PK
 
   /**
