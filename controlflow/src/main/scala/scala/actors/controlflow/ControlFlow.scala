@@ -155,10 +155,12 @@ object ControlFlow {
     }
   }
 
+  class TimeoutException extends Exception
+
   def handleAsyncResult[R](msg: Any)(implicit eh: ExceptionHandler): R = msg match {
     case NormalResult(value) => value.asInstanceOf[R]
     case ExceptionResult(t) => eh.handle(t)
-    case TIMEOUT => eh.handle(new Exception("Failed to receive result of call."))
+    case TIMEOUT => eh.handle(new TimeoutException)
     case unexpected => eh.handle(new MatchError("Expected NormalResult or ExceptionResult: " + unexpected))
   }
 
@@ -171,12 +173,13 @@ object ControlFlow {
     handleAsyncResult[A](msg)
   }
 
-  /*def callWithCC[A, B](value: A)(f: AsyncFunction1[A, B]): B = {
-    val channel = new Channel[Any] // should apply to Actor.self
+  def callWithCCWithin[A](msec: Long)(f: AsyncFunction0[A]): A = {
+    implicit val exceptionHandler = ExceptionHandler.thrower
+    val channel = new Channel[Any](Actor.self)
     val k = sendingCont(channel)
-    Actor.actor { f(value)(k) }
-    val msg = channel.receive { case any => any }
-    handleAsyncResult[B](msg)
-  }*/
+    Actor.actor { f(k) }
+    val msg = channel.receiveWithin(msec) { case any => any }
+    handleAsyncResult[A](msg)
+  }
 
 }

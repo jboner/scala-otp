@@ -66,5 +66,27 @@ class ControlFlowSuite extends TestNGSuite with Checkers {
     assert(callWithCC((two andThen (addOne compose double))) == 5)
     assert(callWithCC((two andThen (double compose addOne))) == 6)
   }
+  
+  private[this] def asyncTest(msec: Long)(body: => Unit) =
+    callWithCCWithin(msec) (asAsync(() => body))
+
+  @Test
+  def testExceptionHandler = {
+    asyncTest(1000) {
+      val caller = Actor.self
+      class TestException extends java.lang.Exception
+      try {
+        callWithCC { k: Cont[Unit] => 
+          import k.exceptionHandler
+          assert(Actor.self != caller) // Should be running in a different actor.
+          throw new TestException
+        }
+        fail("Expected Exception to be thrown.")
+      } catch {
+        case te: TestException => () // Desired result.
+        case t: Throwable => fail("Expected TestException, caught: " + t)
+      }
+    }
+  }
 
 }
