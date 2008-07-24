@@ -77,9 +77,49 @@ class ControlFlowSuite extends TestNGSuite with Checkers {
       class TestException extends java.lang.Exception
       try {
         callWithCC { k: Cont[Unit] => 
+          assert(Actor.self != caller) // Should be running in a different actor.
+          throw new TestException
+        }
+        fail("Expected Exception to be thrown.")
+      } catch {
+        case te: TestException => () // Desired result.
+        case t: Throwable => fail("Expected TestException, caught: " + t)
+      }
+    }
+  }
+
+  @Test
+  def testCallWithCCExceptionHandler = {
+    asyncTest(1000) {
+      val caller = Actor.self
+      class TestException extends java.lang.Exception
+      try {
+        callWithCC { k: Cont[Unit] => 
           import k.exceptionHandler
           assert(Actor.self != caller) // Should be running in a different actor.
           throw new TestException
+        }
+        fail("Expected Exception to be thrown.")
+      } catch {
+        case te: TestException => () // Desired result.
+        case t: Throwable => fail("Expected TestException, caught: " + t)
+      }
+    }
+  }
+
+  @Test
+  def testExceptionHandlerChaining = {
+    asyncTest(1000) {
+      val caller = Actor.self
+      class TestException extends java.lang.Exception
+      try {
+        callWithCC { k: Cont[Unit] => 
+          import k.exceptionHandler
+          val asyncFunction: AsyncFunction0[Unit] = asAsync { () => }
+          asyncFunction { () =>
+            assert(Actor.self != caller) // Should be running in a different actor.
+            throw new TestException
+          }
         }
         fail("Expected Exception to be thrown.")
       } catch {

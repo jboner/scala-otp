@@ -18,7 +18,7 @@ object ControlFlow {
       val channel = new Channel[Unit](Actor.self)
       channel ! ()
       channel.react {
-        case _: Any => f()
+        case _: Any => handleCaught(f())(exceptionHandler)
       }
     }
     val exceptionHandler = eh
@@ -33,7 +33,7 @@ object ControlFlow {
       val channel = new Channel[Unit](Actor.self)
       channel ! ()
       channel.react {
-        case _: Any => f(value)
+        case _: Any => handleCaught(f(value))(exceptionHandler)
       }
     }
     val exceptionHandler = eh
@@ -45,7 +45,7 @@ object ControlFlow {
    */
   def actorCont[R](f: R => Unit)(implicit eh: ExceptionHandler) = new Cont[R] {
     def apply(value: R): Nothing = {
-      Actor.actor { f(value) }
+      Actor.actor { handleCaught(f(value))(exceptionHandler) }
       Actor.exit
     }
     val exceptionHandler = eh
@@ -59,7 +59,7 @@ object ControlFlow {
    */
   def nestedCont[R](f: R => Unit)(implicit eh: ExceptionHandler) = new Cont[R] {
     def apply(value: R): Nothing = {
-      f(value)
+      handleCaught(f(value))(exceptionHandler)
       Actor.exit
     }
     val exceptionHandler = eh
@@ -71,9 +71,9 @@ object ControlFlow {
     try {
       body
     } catch {
+      // XXX: Only allow scala.actors Throwables to pass through.
       case e: Exception => eh.handle(e)
       case e: Error => eh.handle(e)
-      case t: Throwable => throw t // FIXME: Only rethrow scala.actors exceptions.
     }
   }
 
