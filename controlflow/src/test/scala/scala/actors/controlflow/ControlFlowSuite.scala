@@ -19,31 +19,6 @@ import scala.actors.controlflow.ControlFlow._
  */
 class ControlFlowSuite extends TestNGSuite with Checkers {
 
-  def range(from: Int, until: Int, delay: Long) = {
-    def tailFrom(i: Int): AsyncStream[Int] = {
-      if (i < until) {
-        Thread.sleep(delay)
-        AsyncStream.cons(i, asAsync { () => tailFrom(i+1) })
-      } else {
-        AsyncStream.empty
-      }
-    }
-    tailFrom(from)
-  }
-
-  @Test
-  def testAsyncStream = {
-    val first = range(0, 2, 50)
-    val second = range(2, 4, 50)
-    assert(List(0, 1) == callWithCC(first.toList _))
-    assert(List(0, 1, 2, 3) == callWithCC { k: Cont[List[Int]] =>
-      import k.exceptionHandler
-      first.append(asAsync { () => second }) { combined: AsyncStream[Int] =>
-        combined.toList(k)
-      }
-    })
-  }
-
   @Test
   def testAsyncFunction = {
     val addOne = asAsync { x: Int => x + 1 }
@@ -67,6 +42,7 @@ class ControlFlowSuite extends TestNGSuite with Checkers {
     assert(callWithCC((two andThen (double compose addOne))) == 6)
   }
   
+  // XXX: Make shared function.
   private[this] def asyncTest(msec: Long)(body: => Unit) =
     callWithCCWithin(msec) (asAsync(() => body))
 

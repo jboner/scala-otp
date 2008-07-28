@@ -12,9 +12,10 @@ object AsyncStream {
    * An empty AsyncStream.
    */
   val empty = new AsyncStream[Nothing] {
-    def isEmpty: Boolean = true
-    def head: Nothing = throw new NoSuchElementException("head of empty stream")
-    def tail(k: Cont[AsyncStream[Nothing]]): Nothing = k.exception(new UnsupportedOperationException("tail of empty stream"))
+    override def isEmpty: Boolean = true
+    override def head: Nothing = throw new NoSuchElementException("head of empty stream")
+    def asyncTail(k: Cont[AsyncStream[Nothing]]): Nothing = k.exception(new UnsupportedOperationException("asyncTail of empty stream"))
+    protected def addDefinedElems(buf: StringBuilder, prefix: String): StringBuilder = buf
   }
 
   /**
@@ -25,12 +26,20 @@ object AsyncStream {
     override def isEmpty = false
     def head = hd
     private var tlCache: AsyncStream[A] = _
-    def tail(k: Cont[AsyncStream[A]]): Nothing = {
+    def asyncTail(k: Cont[AsyncStream[A]]): Nothing = {
       import k.exceptionHandler
       if (tlCache eq null) {
         getTail { tl: AsyncStream[A] => tlCache = tl; k(tl) }
       } else {
         k(tlCache)
+      }
+    }
+    protected def addDefinedElems(buf: StringBuilder, prefix: String): StringBuilder = {
+      val buf1 = buf.append(prefix).append(hd)
+      if (tlCache eq null) {
+        buf1 append ", ?"
+      } else {
+        tlCache.addDefinedElems(buf1, ", ")
       }
     }
   }
@@ -40,51 +49,37 @@ object AsyncStream {
    */
   def fromList[A](list: List[A]): AsyncStream[A] =
     if (list.isEmpty) AsyncStream.empty
-    else cons(list.head, { k: Cont[AsyncStream[A]] => k(AsyncStream.fromList(list.tail)) })
+    else cons(list.head, asAsync(() => AsyncStream.fromList(list.tail)))
 }
 
 /**
  * A stream where the tail is evaluated asynchronously and returned
- * via a continuation.
+ * via a continuation. Synchronous access to the tail is still
+ * available, but this is relatively heavyweight, since it uses
+ * <code>callWithCC</code> internally.
  */
-trait AsyncStream[+A] {
+trait AsyncStream[+A] extends Stream[A] {
 
-  /**
-   * Determine if the list is empty.
-   */
-  def isEmpty: Boolean
-
-  /**
-   * Get the head of the list.
-   */
-  def head: A
+  def tail = callWithCC { k: Cont[AsyncStream[A]] => asyncTail(k) }
 
   /**
    * Get the tail of the list and return it asynchronously, via the
    * given continuation.
    */
-  def tail(k: Cont[AsyncStream[A]]): Nothing
-
-  /**
-   * A blocking operation which returns the current stream. The tail
-   * of the stream is evaluated asynchronously in a different actor.
-   */
-  def toStream: Stream[A] =
-    if (isEmpty) Stream.empty
-    else Stream.cons(head, callWithCC(tail _).toStream)
+  def asyncTail(k: Cont[AsyncStream[A]]): Nothing
 
   /**
    * Convert the stream to a list. The result is returned
    * asynchronously, via the given continuation.
    */
-  def toList(k: Cont[List[A]]): Nothing = {
+  def asyncToList(k: Cont[List[A]]): Nothing = {
     // Construct a reversed list by concatenating each element to the
     // head as it is revealed. Then reverse this list to obtain the
     // correct ordering and return the result.
     import k.exceptionHandler
     def toReversedList(s: AsyncStream[A], accum: List[A])(k2: Cont[List[A]]): Nothing = {
       if (s.isEmpty) k2(accum)
-      else s.tail { tl: AsyncStream[A] => toReversedList(tl, s.head :: accum)(k2) }
+      else s.asyncTail { tl: AsyncStream[A] => toReversedList(tl, s.head :: accum)(k2) }
     }
     toReversedList(this, Nil) { reversed: List[A] => k(reversed.reverse) }
   }
@@ -99,7 +94,7 @@ trait AsyncStream[+A] {
     if (isEmpty) k(AsyncStream.empty)
     else f(head) { mappedHead: B =>
       k(AsyncStream.cons(mappedHead, { k2: Cont[AsyncStream[B]] =>
-        tail {tl: AsyncStream[A] => tl.asyncMap(f)(k2) }
+        asyncTail {tl: AsyncStream[A] => tl.asyncMap(f)(k2) }
       }))
     }
   }
@@ -109,11 +104,11 @@ trait AsyncStream[+A] {
    * the result of an AsyncFunction0. The result is returned
    * asynchronously, via a continuation.
    */
-  def append[B >: A](restGetter: AsyncFunction0[AsyncStream[B]])(k: Cont[AsyncStream[B]]): Nothing = {
+  def asyncAppend[B >: A](restGetter: AsyncFunction0[AsyncStream[B]])(k: Cont[AsyncStream[B]]): Nothing = {
     import k.exceptionHandler
     if (isEmpty) restGetter(k)
     else k(AsyncStream.cons(head, { k2: Cont[AsyncStream[B]] =>
-      tail { tl: AsyncStream[A] => tl.append(restGetter)(k2) }
+      asyncTail { tl: AsyncStream[A] => tl.asyncAppend(restGetter)(k2) }
     }))
   }
 }
