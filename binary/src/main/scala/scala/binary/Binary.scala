@@ -21,19 +21,19 @@ object Binary {
   /**
    * Creates a Binary containing a copy of the given bytes.
    */
-  def apply(bytes: RandomAccessSeq[Byte]): Binary = this(bytes, 0, bytes.length, true)
+  def fromSeq(bytes: RandomAccessSeq[Byte]): Binary = fromSeq(bytes, 0, bytes.length, true)
 
   /**
    * Creates a Binary containing a copy of the given bytes in the
    * given range.
    */
-  def apply(bytes: RandomAccessSeq[Byte], offset: Int, length: Int): Binary = this(bytes, offset, length, true)
+  def fromSeq(bytes: RandomAccessSeq[Byte], offset: Int, length: Int): Binary = fromSeq(bytes, offset, length, true)
 
   /**
    * Creates a Binary containing a copy of the given bytes in the
    * given range.
    */
-  private[scala] def apply(bytes: RandomAccessSeq[Byte], offset: Int, length: Int, makeCopy: Boolean): Binary = {
+  private[scala] def fromSeq(bytes: RandomAccessSeq[Byte], offset: Int, length: Int, makeCopy: Boolean): Binary = {
     length match {
       case 0 => Binary0
       case 1 => new Binary1(
@@ -170,7 +170,7 @@ trait Binary extends RandomAccessSeq[Byte] {
   def ++(other: Binary): Binary = {
     // FIXME: Try to keep the tree balanced?
     val composite = new CompositeBinary(this, other)
-    Binary(composite, 0, composite.length, false)
+    Binary.fromSeq(composite, 0, composite.length, false)
   }
 
   /**
@@ -179,7 +179,7 @@ trait Binary extends RandomAccessSeq[Byte] {
    */
   override def slice(from: Int, until: Int): Binary = {
     if (from == 0 && until == length) this
-    else Binary(this, from, until - from, false)
+    else Binary.fromSeq(this, from, until - from, false)
   }
 
   /**

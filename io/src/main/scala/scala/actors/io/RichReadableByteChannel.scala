@@ -35,7 +35,7 @@ trait RichReadableByteChannel {
           // XXX: May be able to avoid copying into array in some cases.
           val array = new Array[Byte](buffer.remaining)
           buffer.get(array)
-          val binary = Binary(array, 0, length, false)
+          val binary = Binary.fromSeq(array, 0, length, false)
           k(binary)
         }
       }

@@ -13,7 +13,7 @@ class RichInputStream(in: InputStream) {
     if (lengthRead == -1) {
       k(None)
     } else {
-      val binary = Binary(buffer, 0, lengthRead)
+      val binary = Binary.fromSeq(buffer, 0, lengthRead)
       k(Some(binary))
     }
   }
@@ -25,7 +25,7 @@ class RichInputStream(in: InputStream) {
       if (lengthRead == -1) {
         k(AsyncStream.empty)
       } else {
-        val binary = Binary(buffer, 0, lengthRead)
+        val binary = Binary.fromSeq(buffer, 0, lengthRead)
         k(AsyncStream.cons(binary, readNext _))
       }
     }

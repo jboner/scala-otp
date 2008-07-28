@@ -24,12 +24,12 @@ import java.nio.ByteBuffer
 class IoSuite extends TestNGSuite with Checkers {
 
   implicit def arbBinary: Arbitrary[Binary] = Arbitrary {
-    for (bytes <- Arbitrary.arbitrary[Array[Byte]]) yield Binary(bytes)
+    for (bytes <- Arbitrary.arbitrary[Array[Byte]]) yield Binary.fromSeq(bytes)
   }
 
   @Test
   def testSocket = {
-    val binary = Binary("Hello world.".getBytes("UTF8"))
+    val binary = Binary.fromSeq("Hello world.".getBytes("UTF8"))
     val address = new InetSocketAddress("localhost", 12345)
 
     val result = callWithCC { k: Cont[Binary] =>

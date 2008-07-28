@@ -18,7 +18,7 @@ import org.scalatest._
 class BinarySuite extends TestNGSuite with Checkers {
 
   implicit def arbBinary: Arbitrary[Binary] = Arbitrary {
-    for (bytes <- Arbitrary.arbitrary[Array[Byte]]) yield Binary(bytes)
+    for (bytes <- Arbitrary.arbitrary[Array[Byte]]) yield Binary.fromSeq(bytes)
   }
 
   def element(seq: RandomAccessSeq[Byte], i: Int): Option[Byte] = try {
@@ -46,23 +46,23 @@ class BinarySuite extends TestNGSuite with Checkers {
   @Test
   def testCreate = {
     check((array: Array[Byte]) =>
-      checkClassForLength(array.length, Binary(array)))
+      checkClassForLength(array.length, Binary.fromSeq(array)))
     check((array: Array[Byte]) =>
-      sameBytes(Binary(array), array))
+      sameBytes(Binary.fromSeq(array), array))
   }
 
   @Test
   def testCreateWithOffset = {
     check((array: Array[Byte], pre: Array[Byte], post: Array[Byte]) => {
       val joined = pre ++ array ++ post
-      Binary(joined, pre.length, array.length) == Binary(array)
+      Binary.fromSeq(joined, pre.length, array.length) == Binary.fromSeq(array)
     })
   }
 
   @Test
   def testToArray = {
     check((array: Array[Byte]) =>
-      sameBytes(Binary(array).toArray, array))
+      sameBytes(Binary.fromSeq(array).toArray, array))
   }
 
   @Test
@@ -70,7 +70,7 @@ class BinarySuite extends TestNGSuite with Checkers {
     check((binary: Binary) =>
       binary == binary)
     check((binary: Binary) =>
-      binary == Binary(binary.toArray))
+      binary == Binary.fromSeq(binary.toArray))
   }
 
   @Test
@@ -78,14 +78,14 @@ class BinarySuite extends TestNGSuite with Checkers {
     check((binary: Binary) =>
       binary.hashCode == binary.hashCode)
     check((binary: Binary) =>
-      binary.hashCode == Binary(binary.toArray).hashCode)
+      binary.hashCode == Binary.fromSeq(binary.toArray).hashCode)
   }
 
   @Test
   def testImmutable = {
     check((array: Array[Byte]) =>
       (array.length >= 1) ==> {
-        val binary = Binary(array)
+        val binary = Binary.fromSeq(array)
         for (i <- 0 until array.length) array(i) = (array(i) + 1).asInstanceOf[Byte]
         !sameBytes(binary, array)
     })
@@ -95,13 +95,13 @@ class BinarySuite extends TestNGSuite with Checkers {
   @Test
   def testAppend = {
     check((array1: Array[Byte], array2: Array[Byte]) =>
-        sameBytes(array1 ++ array2, Binary(array1) ++ Binary(array2)))
+        sameBytes(array1 ++ array2, Binary.fromSeq(array1) ++ Binary.fromSeq(array2)))
     check((array1: Array[Byte], array2: Array[Byte]) =>
-        sameBytes(array1 ++ array2, (Binary(array1) ++ Binary(array2)).toArray))
+        sameBytes(array1 ++ array2, (Binary.fromSeq(array1) ++ Binary.fromSeq(array2)).toArray))
     check((array1: Array[Byte], array2: Array[Byte]) =>
-        sameBytes(array1, (Binary(array1) ++ Binary(array2)).slice(0, array1.length)))
+        sameBytes(array1, (Binary.fromSeq(array1) ++ Binary.fromSeq(array2)).slice(0, array1.length)))
     check((array1: Array[Byte], array2: Array[Byte]) =>
-        sameBytes(array2, (Binary(array1) ++ Binary(array2)).slice(array1.length, array1.length + array2.length)))
+        sameBytes(array2, (Binary.fromSeq(array1) ++ Binary.fromSeq(array2)).slice(array1.length, array1.length + array2.length)))
   }
 
 }
