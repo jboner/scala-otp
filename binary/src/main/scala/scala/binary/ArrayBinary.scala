@@ -1,5 +1,7 @@
 package scala.binary
 
+import java.nio.ByteBuffer
+
 /**
  * A Binary object backed by an Array.
  *
@@ -20,5 +22,7 @@ final class ArrayBinary private[binary] (private[this] val array: Array[Byte]) e
 
   override def copyToByteArray(srcOffset: Int, array: Array[Byte], destOffset: Int, copyLength: Int): Unit =
     Array.copy(this.array, srcOffset, array, destOffset, copyLength)
+
+  override private[scala] def toByteBuffers: List[ByteBuffer] = ByteBuffer.wrap(array) :: Nil
 
 }

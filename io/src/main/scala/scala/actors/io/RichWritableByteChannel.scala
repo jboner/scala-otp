@@ -9,53 +9,35 @@ import scala.collection.immutable.Queue
 import scala.collection.jcl.Conversions._
 
 trait RichWritableByteChannel {
-  val channel: SelectableChannel with WritableByteChannel
+  val channel: SelectableChannel with GatheringByteChannel
   val richSelector: RichSelector
 
-  protected[this] def createDefaultBuffer: ByteBuffer
-
-  def asyncWrite(binary: Binary)(k: Cont[Unit]): Nothing =
-    asyncWriteWithBuffer(binary, createDefaultBuffer)(k)
-
-  def asyncWriteWithBuffer(binary: Binary, buffer: ByteBuffer)(k: Cont[Unit]): Nothing = {
+  def asyncWrite(binary: Binary)(k: Cont[Unit]): Nothing = {
     import k.exceptionHandler
-    var remaining = binary
-    // Force !buffer.hasRemaining, so that it is filled with binary.
-    buffer.position(0)
-    buffer.limit(0)
-    def asyncWrite0: Nothing = {
-      if (remaining.length == 0) { k(()) }
-      if (!buffer.hasRemaining) {
-        buffer.clear
-        var forBuffer: Binary = null
-        if (buffer.remaining < remaining.length) {
-          forBuffer = remaining.slice(0, buffer.remaining) // XXX: Efficiency?
-          remaining = remaining.slice(buffer.remaining, remaining.length)
-        } else {
-          forBuffer = remaining
-          remaining = Binary.empty
-        }
-        val array = forBuffer.toArray // XXX: Efficiency?
-        //println("RichWritableByteChannel: populating intermediate buffer with "+(array.length)+" bytes.")
-        buffer.put(array)
-        buffer.flip
-      }
-      channel.write(buffer) match {
-        case 0 => {
-          // Write failed, use selector to callback when ready.
-          //println("RichWritableByteChannel: write buffer not ready, waiting.")
-          richSelector.register(channel, RichSelector.Write) { () => asyncWrite0 }
-          Actor.exit
-        }
-        case length => {
-          //println("RichWritableByteChannel: wrote "+length+" bytes.")
-          asyncWrite0
+    def tryWrite(buffers: Array[ByteBuffer], offset: Int): Nothing = try {
+      if (offset >= buffers.length) {
+        k(())
+      } else if (!buffers(offset).hasRemaining) {
+        // Clean out empty or already-processed buffers.
+        buffers(offset) = null // Allow garbage collection.
+        tryWrite(buffers, offset + 1) // Avoid re-processing.
+      } else {
+        //println("Writing buffers: " + buffers.length)
+        channel.write(buffers, offset, buffers.length) match {
+          case 0 => {
+            // Write failed, use selector to callback when ready.
+            richSelector.register(channel, RichSelector.Write) { () => tryWrite(buffers, offset) }
+            Actor.exit
+          }
+          case _ => {
+            //println("RichWritableByteChannel: wrote "+length+" bytes.")
+            tryWrite(buffers, offset)
+          }
         }
       }
+    } catch {
+      case e: Exception => k.exception(e)
     }
-    asyncWrite0
+    tryWrite(binary.toByteBuffers.toArray, 0)
   }
-
-  // XXX: Add writeAll() with AsyncStream?
-
 }

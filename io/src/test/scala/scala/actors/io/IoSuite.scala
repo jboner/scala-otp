@@ -29,7 +29,7 @@ class IoSuite extends TestNGSuite with Checkers {
 
   @Test
   def testSocket = {
-    val binary = Binary.fromSeq("Hello world.".getBytes("UTF8"))
+    val binary = Binary.fromSeq("Hello ".getBytes) ++ Binary.fromSeq("world!".getBytes)
     val address = new InetSocketAddress("localhost", 12345)
 
     val result = callWithCC { k: Cont[Binary] =>

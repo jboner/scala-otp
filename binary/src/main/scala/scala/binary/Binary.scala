@@ -1,5 +1,7 @@
 package scala.binary
 
+import java.nio.ByteBuffer
+
 /**
  * Useful methods for working Binary objects, including Binary
  * creation.
@@ -30,8 +32,9 @@ object Binary {
   def fromSeq(bytes: RandomAccessSeq[Byte], offset: Int, length: Int): Binary = fromSeq(bytes, offset, length, true)
 
   /**
-   * Creates a Binary containing a copy of the given bytes in the
-   * given range.
+   * UNSAFE: Creates a Binary containing the given bytes in the given
+   * range. The bytes will be a copy if <code>makeCopy</code> is true,
+   * but may not be a copy otherwise.
    */
   private[scala] def fromSeq(bytes: RandomAccessSeq[Byte], offset: Int, length: Int, makeCopy: Boolean): Binary = {
     length match {
@@ -168,9 +171,15 @@ trait Binary extends RandomAccessSeq[Byte] {
    * the result.
    */
   def ++(other: Binary): Binary = {
-    // FIXME: Try to keep the tree balanced?
-    val composite = new CompositeBinary(this, other)
-    Binary.fromSeq(composite, 0, composite.length, false)
+    if (isEmpty) {
+      other
+    } else if (other.isEmpty) {
+      this
+    } else {
+      // FIXME: Try to keep the tree balanced?
+      val composite = new CompositeBinary(this, other)
+      Binary.fromSeq(composite, 0, composite.length, false) // XXX: Just return composite?
+    }
   }
 
   /**
@@ -203,6 +212,14 @@ trait Binary extends RandomAccessSeq[Byte] {
     copyToByteArray(0, array, 0, length)
     array
   }
+
+  /**
+   * UNSAFE: Get a list of ByteBuffers containing this object's
+   * content. It is important not to modify the content of any buffer,
+   * as this will alter the content of this Binary - which must not
+   * happen. Useful for efficient gathering writes.
+   */
+  private[scala] def toByteBuffers: List[ByteBuffer] = ByteBuffer.wrap(toArray) :: Nil
 
   /**
    * Get a textual representation of this object.

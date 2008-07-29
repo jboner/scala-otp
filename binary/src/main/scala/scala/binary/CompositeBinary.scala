@@ -1,5 +1,7 @@
 package scala.binary
 
+import java.nio.ByteBuffer
+
 /**
  * A Binary object composed of two child Binary objects.
  *
@@ -31,5 +33,8 @@ final class CompositeBinary private[binary] (private[this] val left: Binary, pri
       right.copyToByteArray(srcOffset + leftCopyLength - left.length, array, destOffset + leftCopyLength, rightCopyLength)
     }
   }
+
+  override private[scala] def toByteBuffers: List[ByteBuffer] =
+    left.toByteBuffers ++ right.toByteBuffers
 
 }
