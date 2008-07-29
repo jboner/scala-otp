@@ -16,9 +16,23 @@ object Binary {
   def empty: Binary = Binary0
 
   /**
+   * Creates a Binary containing a single byte.
+   */
+  def apply(byte: Byte): Binary = new Binary1(byte)
+
+  /**
    * Creates a Binary containing the given bytes.
    */
-  //def apply(bytes: Byte*): Binary = this(bytes.asInstanceOf[RandomAccessSeq[Byte]], 0, bytes.length, false)
+  def apply(bytes: Byte*): Binary = fromSeq(bytes.toArray, 0, bytes.length, false)
+
+  /**
+   * Creates a Binary containing the bytes returned by calling the
+   * given String's <code>getBytes</code> method.
+   */
+  def apply(string: String): Binary = {
+    val bytes = string.getBytes
+    fromSeq(bytes, 0, bytes.length, false)
+  }
 
   /**
    * Creates a Binary containing a copy of the given bytes.
@@ -30,6 +44,11 @@ object Binary {
    * given range.
    */
   def fromSeq(bytes: RandomAccessSeq[Byte], offset: Int, length: Int): Binary = fromSeq(bytes, offset, length, true)
+
+  /**
+   * UNSAFE: Creates a Binary containing the given bytes.
+   */
+  private[scala] def fromSeq(bytes: RandomAccessSeq[Byte], makeCopy: Boolean): Binary = fromSeq(bytes, 0, bytes.length, makeCopy)
 
   /**
    * UNSAFE: Creates a Binary containing the given bytes in the given

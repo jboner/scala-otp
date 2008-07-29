@@ -29,7 +29,7 @@ class IoSuite extends TestNGSuite with Checkers {
 
   @Test
   def testSocket = {
-    val binary = Binary.fromSeq("Hello ".getBytes) ++ Binary.fromSeq("world!".getBytes)
+    val binary = Binary("Hello ") ++ Binary("world!")
     val address = new InetSocketAddress("localhost", 12345)
 
     val result = callWithCC { k: Cont[Binary] =>
@@ -68,7 +68,7 @@ class IoSuite extends TestNGSuite with Checkers {
   /*
   @Test
   def testGoogle = {
-    val request = Binary.fromSeq("GET / HTTP/1.0\n\n".getBytes)
+    val request = Binary.fromSeq("GET / HTTP/1.0\n\n".getBytes("UTF8"))
     val address = new InetSocketAddress("www.google.com", 80)
 
     val result = callWithCC { k: Cont[Binary] =>

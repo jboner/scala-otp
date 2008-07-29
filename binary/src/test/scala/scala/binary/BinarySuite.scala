@@ -49,6 +49,20 @@ class BinarySuite extends TestNGSuite with Checkers {
       checkClassForLength(array.length, Binary.fromSeq(array)))
     check((array: Array[Byte]) =>
       sameBytes(Binary.fromSeq(array), array))
+    check((array: Array[Byte]) =>
+      sameBytes(Binary.fromSeq(array), array))
+    check { (b0: Byte) =>
+      val binary = Binary(b0)
+      b0 == binary(0) && binary.length == 1
+    }
+    check { (b0: Byte, b1: Byte) =>
+      val binary = Binary(b0, b1)
+      b0 == binary(0) && b1 == binary(1) && binary.length == 2
+    }
+    check { (b0: Byte, b1: Byte, b2: Byte) =>
+      val binary = Binary(b0, b1, b2)
+      b0 == binary(0) && b1 == binary(1) && b2 == binary(2) && binary.length == 3
+    }
   }
 
   @Test

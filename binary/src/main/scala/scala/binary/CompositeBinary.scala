@@ -7,7 +7,7 @@ import java.nio.ByteBuffer
  *
  * @author <a href="http://www.richdougherty.com/">Rich Dougherty</a>
  */
-final class CompositeBinary private[binary] (private[this] val left: Binary, private[this] val right: Binary) extends Binary {
+final case class CompositeBinary private[binary] (private[binary] val left: Binary, private[binary] val right: Binary) extends Binary {
 
   override val length = left.length + right.length
 
