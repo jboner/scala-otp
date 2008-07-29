@@ -12,45 +12,67 @@ trait RichReadableByteChannel {
   val channel: SelectableChannel with ReadableByteChannel
   val richSelector: RichSelector
 
-  protected[this] def createDefaultBuffer: ByteBuffer
+  protected[this] val bufferLength: Int
 
-  // returns zero-length Binary when reach end
-  def asyncRead(k: Cont[Binary]): Nothing =
-    asyncReadWithBuffer(createDefaultBuffer)(k)
+  /**
+   * "Copies" a ByteBuffer into a Binary, consuming the buffer in the
+   * process.  A new, equal-sized ByteBuffer is returned along with
+   * the Binary. Returned ByteBuffers have a position of zero, a limit
+   * set to the capacity and no mark - equivalent to calling clear.
+   */
+  private[this] def copy(buffer: ByteBuffer): (ByteBuffer, Binary) = {
+    if (buffer.hasArray && buffer.remaining == buffer.capacity) {
+      // Consume the ByteBuffer and create a new one.
+      //println("Wrapping ByteBuffer directly in Binary.")
+      val newBuffer = ByteBuffer.allocate(buffer.capacity)
+      val binary = Binary.fromSeq(buffer.array, buffer.arrayOffset, buffer.capacity, false)
+      (newBuffer, binary)
+    } else {
+      // Copy the ByteBuffer's contents.
+      //println("Copying ByteBuffer contents into Binary.")
+      val array = new Array[Byte](buffer.remaining)
+      buffer.get(array)
+      val binary = Binary.fromSeq(array, 0, array.length, false)
+      buffer.clear
+      (buffer, binary)
+    }
+  }
 
-  // returns zero-length Binary when reach end
-  def asyncReadWithBuffer(buffer: ByteBuffer)(k: Cont[Binary]): Nothing = {
+  // returns zero-length Binary when reaches end
+  def asyncRead(k: Cont[Binary]): Nothing = {
     import k.exceptionHandler
-    def asyncRead0: Nothing = {
+    def tryRead(buffer: ByteBuffer, accum: Binary): Nothing = {
       buffer.clear
       channel.read(buffer) match {
-        case -1 => k(Binary.empty)
-        case 0 => {
-          // Read failed, use selector to callback when ready.
-          richSelector.register(channel, RichSelector.Read) { () => asyncRead0 }
+        case -1 => k(accum)
+        case 0 if accum.isEmpty => {
+          // No data available yet: set callback.
+          //println("No bytes for reading: awaiting callback.") 
+          richSelector.register(channel, RichSelector.Read) { () => tryRead(buffer, accum) }
           Actor.exit
         }
+        case 0 => {
+          // Reached end of available data: sending accum.
+          //println("No bytes for reading: ending read.")
+          k(accum)
+        }
         case length => {
+          //println("Read "+length+" bytes.")
           buffer.flip
-          // XXX: May be able to avoid copying into array in some cases.
-          val array = new Array[Byte](buffer.remaining)
-          buffer.get(array)
-          val binary = Binary.fromSeq(array, 0, length, false)
-          k(binary)
+          val (newBuffer, binary) = copy(buffer)
+          tryRead(newBuffer, accum ++ binary)
         }
       }
     }
-    asyncRead0
+    tryRead(ByteBuffer.allocate(bufferLength), Binary.empty)
   }
 
-  def asyncReadAll(k: Cont[Binary]): Nothing =
-    asyncReadAllWithBuffer(createDefaultBuffer)(k)
-
-  def asyncReadAllWithBuffer(buffer: ByteBuffer)(k: Cont[Binary]): Nothing = {
+  // warn about memory usage!
+  def asyncReadAll(k: Cont[Binary]): Nothing = {
     import k.exceptionHandler
     // XXX: Replace with asyncFold.
     def asyncReadAll0(accum: Binary): Nothing = {
-      asyncReadWithBuffer(buffer) { binary: Binary =>
+      asyncRead { binary: Binary =>
         if (binary.isEmpty) {
           k(accum)
         } else {
@@ -61,16 +83,13 @@ trait RichReadableByteChannel {
     asyncReadAll0(Binary.empty)
   }
 
-  def asyncReadStream(k: Cont[AsyncStream[Binary]]): Nothing =
-    asyncReadStreamWithBuffer(createDefaultBuffer)(k)
-
-  def asyncReadStreamWithBuffer(buffer: ByteBuffer)(k: Cont[AsyncStream[Binary]]): Nothing = {
+  def asyncReadStream(k: Cont[AsyncStream[Binary]]): Nothing = {
     import k.exceptionHandler
-    asyncReadWithBuffer(buffer) { binary: Binary =>
+    asyncRead { binary: Binary =>
       if (binary.isEmpty) {
         k(AsyncStream.empty)
       } else {
-        k(AsyncStream.cons(binary, asyncReadStreamWithBuffer(buffer) _))
+        k(AsyncStream.cons(binary, asyncReadStream _))
       }
     }
   }

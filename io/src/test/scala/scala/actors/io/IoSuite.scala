@@ -46,7 +46,7 @@ class IoSuite extends TestNGSuite with Checkers {
         rssc.asyncAccept { sc1: SocketChannel => 
           sc1.configureBlocking(false)
           val rsc1 = new RichSocketChannel(sc1, selector)
-          println("Sending")
+          println("Sending: " + new String(binary.toArray))
           rsc1.asyncWrite(binary) { () => println("Closing socket") ; sc1.close }
           println("Closing server socket")
           ssc.close
@@ -61,7 +61,28 @@ class IoSuite extends TestNGSuite with Checkers {
       }
       Actor.exit
     }
+    println("Received: " + new String(result.toArray))
     assert(result == binary)
   }
+
+  /*
+  @Test
+  def testGoogle = {
+    val request = Binary.fromSeq("GET / HTTP/1.0\n\n".getBytes)
+    val address = new InetSocketAddress("www.google.com", 80)
+
+    val result = callWithCC { k: Cont[Binary] =>
+      import k.exceptionHandler
+      val selector = new RichSelector
+      val sc: SocketChannel = SocketChannel.open
+      sc.configureBlocking(false)
+      val rsc = new RichSocketChannel(sc, selector)
+      rsc.asyncConnect(address) { () => 
+        rsc.asyncWrite(request) { () => rsc.asyncReadAll(k) }
+      }
+    }
+    println("Received: " + new String(result.toArray))
+  }
+  */
 
 }
