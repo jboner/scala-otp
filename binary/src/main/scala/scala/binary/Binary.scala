@@ -18,12 +18,12 @@ object Binary {
   /**
    * Creates a Binary containing the given bytes.
    */
-  def apply(bytes: Byte*): Binary = fromSeq(bytes.toArray, 0, bytes.length, false)
+  def apply(bytes: Byte*): Binary = fromSeq(bytes.toArray, false)
 
   /**
    * Creates a Binary containing a copy of the given bytes.
    */
-  def fromSeq(bytes: RandomAccessSeq[Byte]): Binary = fromSeq(bytes, 0, bytes.length, true)
+  def fromSeq(bytes: RandomAccessSeq[Byte]): Binary = fromSeq(bytes, true)
 
   /**
    * Creates a Binary containing a copy of the given bytes in the
