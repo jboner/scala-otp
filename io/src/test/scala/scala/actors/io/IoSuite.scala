@@ -9,9 +9,10 @@ import org.scalacheck.Arbitrary._
 import org.scalacheck.Gen
 import org.scalacheck.Prop._
 import org.scalatest._
-import scala.binary._
 import scala.actors.controlflow._
 import scala.actors.controlflow.ControlFlow._
+import scala.actors.io.conversion._
+import scala.binary._
 import java.net.InetSocketAddress
 import java.nio.channels._
 import java.nio.ByteBuffer
@@ -29,7 +30,7 @@ class IoSuite extends TestNGSuite with Checkers {
 
   @Test
   def testSocket = {
-    val binary = Binary("Hello ") ++ Binary("world!")
+    val binary = Binary.fromString("Hello ") ++ Binary.fromString("world!")
     val address = new InetSocketAddress("localhost", 12345)
 
     val result = callWithCC { k: Cont[Binary] =>
@@ -64,25 +65,5 @@ class IoSuite extends TestNGSuite with Checkers {
     println("Received: " + new String(result.toArray))
     assert(result == binary)
   }
-
-  /*
-  @Test
-  def testGoogle = {
-    val request = Binary.fromSeq("GET / HTTP/1.0\n\n".getBytes("UTF8"))
-    val address = new InetSocketAddress("www.google.com", 80)
-
-    val result = callWithCC { k: Cont[Binary] =>
-      import k.exceptionHandler
-      val selector = new RichSelector
-      val sc: SocketChannel = SocketChannel.open
-      sc.configureBlocking(false)
-      val rsc = new RichSocketChannel(sc, selector)
-      rsc.asyncConnect(address) { () => 
-        rsc.asyncWrite(request) { () => rsc.asyncReadAll(k) }
-      }
-    }
-    println("Received: " + new String(result.toArray))
-  }
-  */
-
+  
 }

@@ -16,23 +16,9 @@ object Binary {
   def empty: Binary = Binary0
 
   /**
-   * Creates a Binary containing a single byte.
-   */
-  def apply(byte: Byte): Binary = new Binary1(byte)
-
-  /**
    * Creates a Binary containing the given bytes.
    */
   def apply(bytes: Byte*): Binary = fromSeq(bytes.toArray, 0, bytes.length, false)
-
-  /**
-   * Creates a Binary containing the bytes returned by calling the
-   * given String's <code>getBytes</code> method.
-   */
-  def apply(string: String): Binary = {
-    val bytes = string.getBytes
-    fromSeq(bytes, 0, bytes.length, false)
-  }
 
   /**
    * Creates a Binary containing a copy of the given bytes.
@@ -138,6 +124,22 @@ object Binary {
     }
   }
 
+  /**
+   * Creates a Binary from a String.
+   */
+  def fromString(string: String): Binary = {
+    val bytes = string.getBytes
+    fromSeq(bytes, 0, bytes.length, false)
+  }
+
+  /**
+   * Creates a Binary from a String.
+   */
+  def fromString(string: String, charsetName: String): Binary = {
+    val bytes = string.getBytes(charsetName)
+    fromSeq(bytes, 0, bytes.length, false)
+  }
+
 }
 
 /**
@@ -209,6 +211,12 @@ trait Binary extends RandomAccessSeq[Byte] {
     if (from == 0 && until == length) this
     else Binary.fromSeq(this, from, until - from, false)
   }
+
+  /**
+   * Gets a slice of this binary, returning a new Binary as the
+   * result.
+   */
+  override def slice(from: Int) = slice(from, length)
 
   /**
    * Copy this object's bytes into a given array.

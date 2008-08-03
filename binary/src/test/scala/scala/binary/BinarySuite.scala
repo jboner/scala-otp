@@ -105,7 +105,6 @@ class BinarySuite extends TestNGSuite with Checkers {
     })
   }
 
-
   @Test
   def testAppend = {
     check((array1: Array[Byte], array2: Array[Byte]) =>
@@ -116,6 +115,8 @@ class BinarySuite extends TestNGSuite with Checkers {
         sameBytes(array1, (Binary.fromSeq(array1) ++ Binary.fromSeq(array2)).slice(0, array1.length)))
     check((array1: Array[Byte], array2: Array[Byte]) =>
         sameBytes(array2, (Binary.fromSeq(array1) ++ Binary.fromSeq(array2)).slice(array1.length, array1.length + array2.length)))
+    check((array1: Array[Byte], array2: Array[Byte]) =>
+        sameBytes(array2, (Binary.fromSeq(array1) ++ Binary.fromSeq(array2)).slice(array1.length)))
   }
 
 }
