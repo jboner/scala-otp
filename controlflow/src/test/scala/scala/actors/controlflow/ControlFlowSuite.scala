@@ -19,29 +19,6 @@ import scala.actors.controlflow.ControlFlow._
  */
 class ControlFlowSuite extends TestNGSuite with Checkers {
 
-  @Test
-  def testAsyncFunction = {
-    val addOne = asAsync { x: Int => x + 1 }
-    val double = asAsync { x: Int => x * 2 }
-    assert(callWithCC(addOne(2) _) == 3)
-    assert(callWithCC(double(2) _) == 4)
-    assert(callWithCC((addOne andThen double)(2) _) == 6)
-    assert(callWithCC((addOne andThen double)(2) _) == 6)
-    assert(callWithCC((double andThen addOne)(2) _) == 5)
-    assert(callWithCC((addOne compose double)(2) _) == 5)
-    assert(callWithCC((double compose addOne)(2) _) == 6)
-
-    val two = asAsync { () => 2 }
-    assert(callWithCC(two) == 2)
-    assert(callWithCC((two andThen addOne)) == 3)
-    assert(callWithCC((two andThen double)) == 4)
-    assert(callWithCC((two andThen addOne andThen double)) == 6)
-    assert(callWithCC((two andThen addOne andThen double)) == 6)
-    assert(callWithCC((two andThen double andThen addOne)) == 5)
-    assert(callWithCC((two andThen (addOne compose double))) == 5)
-    assert(callWithCC((two andThen (double compose addOne))) == 6)
-  }
-  
   // XXX: Make shared function.
   private[this] def asyncTest(msec: Long)(body: => Unit) =
     callWithCCWithin(msec) (asAsync(() => body))

@@ -1,6 +1,11 @@
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
 
 <suite name="All Flow Control Tests" verbose="1">
+  <test name="AsyncFunction">
+    <classes>
+      <class name="scala.actors.controlflow.AsyncFunctionSuite" />
+    </classes>
+  </test>
   <test name="AsyncStream">
     <classes>
       <class name="scala.actors.controlflow.AsyncStreamSuite" />
