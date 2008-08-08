@@ -30,12 +30,12 @@ trait RichReadableByteChannel {
         case length => {
           // XXX: Could sometimes use array if length < maxLength - would save a copy.
           if (length == maxLength && buffer.hasArray) {
-            k(Binary.fromSeq(buffer.array, buffer.arrayOffset, buffer.capacity, false))
+            k(Binary.fromArray(buffer.array, buffer.arrayOffset, buffer.capacity, false))
           } else {
             buffer.flip
             val array = new Array[Byte](buffer.remaining)
             buffer.get(array)
-            k(Binary.fromSeq(array, 0, array.length, false))
+            k(Binary.fromArray(array, 0, array.length, false))
           }
         }
       }

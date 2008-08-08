@@ -38,6 +38,6 @@ trait RichWritableByteChannel {
     } catch {
       case e: Exception => k.exception(e)
     }
-    tryWrite(binary.toByteBuffers.toArray, 0)
+    tryWrite(binary.byteBuffers.toList.toArray, 0)
   }
 }
