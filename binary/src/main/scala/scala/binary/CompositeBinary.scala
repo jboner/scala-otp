@@ -123,4 +123,7 @@ private[binary] final case class CompositeBinary private[binary] (private[binary
     }
     leftArrays ++ rightArrays
   }
+
+  override def elements: Iterator[Byte] = (left.elements ++ right.elements)
+
 }

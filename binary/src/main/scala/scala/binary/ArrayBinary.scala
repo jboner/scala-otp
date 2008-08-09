@@ -30,4 +30,6 @@ private[scala] final case class ArrayBinary private[binary] (private[scala] val 
 
   private[scala] def wrappingByteBuffer: ByteBuffer = ByteBuffer.wrap(array, offset, length)
 
+  override def elements: Iterator[Byte] = array.slice(offset, offset + length).elements
+
 }
