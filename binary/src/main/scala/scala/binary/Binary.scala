@@ -1,5 +1,7 @@
 package scala.binary
 
+import java.nio.ByteBuffer
+
 /**
  * Useful methods for working Binary objects, including Binary
  * creation.
@@ -9,84 +11,63 @@ package scala.binary
 object Binary {
 
   /**
-   * Creates a Binary containing a copy of the given bytes.
+   * Gets a Binary containing no bytes.
    */
-  def apply(bytes: Array[Byte]): Binary = this(bytes, 0, bytes.length)
+  def empty: Binary = new Binary {
 
-  /**
-   * Creates a Binary containing a copy of the given bytes in the
-   * given range.
-   */
-  def apply(bytes: Array[Byte], offset: Int, length: Int): Binary = {
-    val small = makeSmallCopy(bytes, offset, length)
-    if (small.isDefined) return small.get
-    val copy = new Array[Byte](length)
-    Array.copy(bytes, offset, copy, 0, length)
-    new ArrayBinary(copy)
+    override def length = 0
+
+    override private[binary] def depth = 0
+
+    override def apply(i: Int) = throw new IndexOutOfBoundsException
+
+    protected def copyToArray0(from: Int, until: Int, dest: Array[Byte], destFrom: Int): Unit = ()
+
+    protected def arrays0(from: Int, until: Int): Iterable[ArrayBinary] = Nil
+
+    protected def slice0(from: Int, until: Int): Binary = this
+
   }
 
   /**
-   * Attempt to create a small Binary from the given bytes. This
-   * operation may fail (return None), in which case the Binary will
-   * have to be created with an alternative method.
+   * Creates a Binary containing the given bytes.
    */
-  private def makeSmallCopy(bytes: Array[Byte], offset: Int, length: Int): Option[Binary] =
-    length match {
-      case 0 => Some(new Binary0)
-      case 1 => Some(new Binary1(
-        bytes(offset)
-      ))
-      case 2 => Some(new Binary2(
-        bytes(offset),
-        bytes(offset+1)
-      ))
-      case 3 => Some(new Binary3(
-        bytes(offset),
-        bytes(offset+1),
-        bytes(offset+2)
-      ))
-      case 4 => Some(new Binary4(
-        bytes(offset),
-        bytes(offset+1),
-        bytes(offset+2),
-        bytes(offset+3)
-      ))
-      case 5 => Some(new Binary5(
-        bytes(offset),
-        bytes(offset+1),
-        bytes(offset+2),
-        bytes(offset+3),
-        bytes(offset+4)
-      ))
-      case 6 => Some(new Binary6(
-        bytes(offset),
-        bytes(offset+1),
-        bytes(offset+2),
-        bytes(offset+3),
-        bytes(offset+4),
-        bytes(offset+5)
-      ))
-      case 7 => Some(new Binary7(
-        bytes(offset),
-        bytes(offset+1),
-        bytes(offset+2),
-        bytes(offset+3),
-        bytes(offset+4),
-        bytes(offset+5),
-        bytes(offset+6)
-      ))
-      case 8 => Some(new Binary8(
-        bytes(offset),
-        bytes(offset+1),
-        bytes(offset+2),
-        bytes(offset+3),
-        bytes(offset+4),
-        bytes(offset+5),
-        bytes(offset+6),
-        bytes(offset+7)
-      ))
-      case _ => None
+  def apply(bytes: Byte*): Binary = fromArray(bytes.toArray, false)
+
+  def fromSeq(seq: Seq[Byte]): Binary = seq match {
+    case binary: Binary => binary
+    case array: Array[Byte] => fromArray(array, true)
+    case _ => fromArray(seq.toArray, false)
+  }
+
+  def fromArray(array: Array[Byte]): Binary = fromArray(array, true)
+  def fromArray(array: Array[Byte], offset: Int, length: Int): Binary = fromArray(array, offset, length, true)
+  private[scala] def fromArray(array: Array[Byte], aliased: Boolean): Binary = fromArray(array, 0, array.length, aliased)
+  private[scala] def fromArray(array: Array[Byte], offset: Int, length: Int, aliased: Boolean): Binary = {
+    if (aliased) {
+      val copy = new Array[Byte](length)
+      Array.copy(array, offset, copy, 0, length)
+      new ArrayBinary(copy, 0, length)
+    } else {
+      new ArrayBinary(array, offset, length)
     }
+  }
+
+  /**
+   * Creates a Binary from a String.
+   */
+  def fromString(string: String): Binary = {
+    val bytes = string.getBytes
+    fromArray(bytes, false)
+  }
+
+  /**
+   * Creates a Binary from a String.
+   */
+  def fromString(string: String, charsetName: String): Binary = {
+    val bytes = string.getBytes(charsetName)
+    fromArray(bytes, false)
+  }
 
 }
 
@@ -105,16 +86,24 @@ trait Binary extends RandomAccessSeq[Byte] {
    */
   override def size = length
 
-  override def hashCode: Int = {
-    // same algorithm as java.lang.String, except starting with 4321
-    //  4321 + s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]
-    var hashCode = 4321
-    var i = 0
-    while (i < length) {
-      hashCode = hashCode * 31 + this(i)
-      i += 1
+  private[binary] def depth: Int
+
+  // XXX: Safe to leave unsynchronized? Can a thread ever see a partially-written value?
+  private var cachedHashCode = 0
+
+  // same algorithm as java.lang.String, except starting with 4321
+  //  4321 + s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]
+  override final def hashCode: Int = {
+    if (cachedHashCode == 0) {
+      var hashCode = 4321
+      var i = 0
+      while (i < length) {
+        hashCode = hashCode * 31 + this(i)
+        i += 1
+      }
+      cachedHashCode = hashCode
     }
-    hashCode
+    cachedHashCode
   }
 
   /**
@@ -122,7 +111,7 @@ trait Binary extends RandomAccessSeq[Byte] {
    * equal if and only if the other object is a Binary containing the
    * same bytes in the same order.
    */
-  override def equals(o: Any): Boolean = {
+  override final def equals(o: Any): Boolean = {
     if (this eq o.asInstanceOf[AnyRef]) return true
     if (!(this.isInstanceOf[Binary])) return false
     val ob = o.asInstanceOf[Binary]
@@ -133,52 +122,111 @@ trait Binary extends RandomAccessSeq[Byte] {
       i += 1
     }
     true
+  }  
+
+  private def combine(left: Binary, right: Binary): Binary = {
+    val combinedArray = (new CompositeBinary(left, right)).toArray
+    Binary.fromArray(combinedArray, false)
+  }
+
+  private def balance(left: Binary, right: Binary): Binary = {
+    val composedArray = new CompositeBinary(left, right)
+    if (composedArray.isBalanced) composedArray
+    else composedArray.rebalance
   }
 
   /**
    * Append another Binary to this Binary, returning a new Binary as
    * the result.
    */
-  def ++(other: Binary): Binary = {
-    // FIXME: Needs optimization:
-    // - Copy into BinaryX, if length <= 8.
-    // - Try to keep the tree balanced (minimize average byte depth?).
-    new CompositeBinary(this, other)
+  final def ++(other: Binary): Binary = {
+    if (isEmpty) {
+      other
+    } else if (other.isEmpty) {
+      this
+    } else {
+      val newLength = length.asInstanceOf[Long] + other.length.asInstanceOf[Long]
+      if (newLength > Integer.MAX_VALUE) {
+        throw new IllegalArgumentException("Combined length too long: " + newLength)
+      }
+      val maxCombineLength = 16
+      (this, other) match {
+        case (l: Binary, r @ CompositeBinary(rl, rr)) if (l.length + rl.length) <= maxCombineLength => {
+          balance(combine(l, rl), rr)
+        }
+        case (l @ CompositeBinary(ll, lr), r: Binary) if (lr.length + r.length) <= maxCombineLength => {
+          balance(ll, combine(lr, r))
+        }
+        case (l: Binary, r: Binary) => {
+          balance(l, r)
+        }
+      }
+    }
   }
 
   /**
    * Gets a slice of this binary, returning a new Binary as the
    * result.
    */
-  override def slice(from: Int, until: Int): Binary = {
-    // FIXME: Optimize.
-    val sliceLength = until - from
-    val array = new Array[Byte](sliceLength)
-    copyToByteArray(from, array, 0, sliceLength)
-    Binary(array)
+  override final def slice(from: Int, until: Int): Binary = {
+    if (from == 0 && until == length) this
+    else if (from < 0 || until > length) throw new IndexOutOfBoundsException
+    else if (from > until) throw new IllegalArgumentException("Argument 'from' was > 'until'.")
+    else slice0(from, until)
   }
+
+  protected def slice0(from: Int, until: Int): Binary
+
+  /**
+   * Gets a slice of this binary, returning a new Binary as the
+   * result.
+   */
+  override final def slice(from: Int) = slice(from, length)
+
 
   /**
    * Copy this object's bytes into a given array.
    */
-  def copyToByteArray(srcOffset: Int, array: Array[Byte], destOffset: Int, copyLength: Int): Unit = {
-    if ((srcOffset + copyLength) > this.length || (destOffset + copyLength) > array.length)
-      throw new IndexOutOfBoundsException
-    var i = 0
-    while (i < length) {
-      array(destOffset + i) = this(srcOffset + i)
-      i += 1
-    }
+  final def copyToArray(from: Int, until: Int, dest: Array[Byte], destFrom: Int): Unit = {
+    if (from < 0 || until > length) throw new IndexOutOfBoundsException
+    else if ((until - from) > (dest.length - destFrom)) throw new IndexOutOfBoundsException
+    else if (from == until) ()
+    else copyToArray0(from, until, dest, destFrom)
   }
+
+  protected def copyToArray0(from: Int, until: Int, dest: Array[Byte], destFrom: Int): Unit
 
   /**
    * Get a copy of this object's bytes, stored in an array.
    */
   def toArray: Array[Byte] = {
     val array = new Array[Byte](length)
-    copyToByteArray(0, array, 0, length)
+    copyToArray(0, length, array, 0)
     array
   }
+
+  /**
+   * Gets the ArrayBinary leaves of this Binary.
+   */
+  private[scala] final def arrays(from: Int, until: Int): Iterable[ArrayBinary] = {
+    if (from < 0 || until > length) throw new IndexOutOfBoundsException
+    else if (from == until) Nil
+    else arrays0(from, until)
+  }
+
+  protected def arrays0(from: Int, until: Int): Iterable[ArrayBinary]
+
+  /**
+   * UNSAFE: Get a list of ByteBuffers containing this object's
+   * content. It is important not to modify the content of any buffer,
+   * as this will alter the content of this Binary - which must not
+   * happen.
+   */
+  private[scala] final def byteBuffers(from: Int, until: Int): Iterable[ByteBuffer] =
+    arrays0(from, until) map { _.wrappingByteBuffer }
+
+ private[scala] final def byteBuffers: Iterable[ByteBuffer] =
+    byteBuffers(0, length)
 
   /**
    * Get a textual representation of this object.

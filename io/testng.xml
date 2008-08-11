@@ -1,0 +1,9 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="All IO Tests" verbose="1">
+  <test name="IoSuite">
+    <classes>
+      <class name="scala.actors.io.IoSuite" />
+    </classes>
+  </test>
+</suite>

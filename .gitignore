@@ -1,5 +1,5 @@
-target/
-out/
+target
+out
 *.ipr
 *.iws
 *.iml

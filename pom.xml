@@ -26,6 +26,8 @@
   <modules>
     <module>behaviors</module>
     <module>binary</module>
+    <module>controlflow</module>
+    <module>io</module>
     <module>mnesia</module>
   </modules>
 
@@ -52,6 +54,28 @@
         <artifactId>scala-library</artifactId>
         <version>${scala.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>scala.actors.behaviors</groupId>
+        <artifactId>scala-behaviors</artifactId>
+        <version>0.1-SNAPSHOT</version>
+      </dependency>
+      <dependency>
+        <groupId>scala.binary</groupId>
+        <artifactId>scala-binary</artifactId>
+        <version>0.1-SNAPSHOT</version>
+      </dependency>
+      <dependency>
+        <groupId>scala.actors.controlflow</groupId>
+        <artifactId>scala-controlflow</artifactId>
+        <version>0.1-SNAPSHOT</version>
+      </dependency>
+      <dependency>
+        <groupId>scala.actors.io</groupId>
+        <artifactId>scala-io</artifactId>
+        <version>0.1-SNAPSHOT</version>
+      </dependency>
+
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
@@ -79,6 +103,11 @@
         <artifactId>testng</artifactId>
         <version>5.7</version>
         <classifier>jdk15</classifier>
+      </dependency>
+      <dependency>
+        <groupId>org.scalacheck</groupId>
+        <artifactId>scalacheck</artifactId>
+       <version>1.3</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
