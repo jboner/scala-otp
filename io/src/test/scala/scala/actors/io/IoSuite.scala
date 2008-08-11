@@ -11,7 +11,6 @@ import org.scalacheck.Prop._
 import org.scalatest._
 import scala.actors.controlflow._
 import scala.actors.controlflow.ControlFlow._
-import scala.actors.io.conversion._
 import scala.binary._
 import java.net.InetSocketAddress
 import java.nio.channels._
