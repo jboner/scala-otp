@@ -139,47 +139,48 @@ object ControlFlow {
 
   abstract sealed class AsyncResult[-R]
   case class NormalResult[R](value: R) extends AsyncResult[R]
-  case class ExceptionResult(cause: Throwable) extends AsyncResult[Nothing]
+  case class ExceptionResult(cause: Throwable) extends AsyncResult[Any]
 
-  // a continuation which sends a Result to the given OutputChannel
-  def sendingCont[R](oc: OutputChannel[E forSome { type E >: AsyncResult[R] } ]) = new Cont[R] {
+  // a continuation which calls a function with the AsyncResult,
+  // making it easier to handle normal and exceptional results in
+  // a consistent way
+  implicit def resultCont[R](f: Function1[AsyncResult[R], Nothing]): Cont[R] = new Cont[R] {
     def apply(value: R): Nothing = {
-      oc ! NormalResult(value)
-      Actor.exit
+      f(NormalResult(value))
     }
     val exceptionHandler = new ExceptionHandler {
       def handle(t: Throwable): Nothing = {
-        oc ! ExceptionResult(t)
-        Actor.exit // normal exit; error handled by continuation
+	f(ExceptionResult(t))
       }
     }
   }
 
   class TimeoutException extends Exception
 
-  def handleAsyncResult[R](msg: Any)(implicit eh: ExceptionHandler): R = msg match {
-    case NormalResult(value) => value.asInstanceOf[R]
-    case ExceptionResult(t) => eh.handle(t)
-    case TIMEOUT => eh.handle(new TimeoutException)
-    case unexpected => eh.handle(new MatchError("Expected NormalResult or ExceptionResult: " + unexpected))
-  }
-
   def callWithCC[A](f: AsyncFunction0[A]): A = {
-    implicit val exceptionHandler = ExceptionHandler.thrower
-    val channel = new Channel[Any](Actor.self)
-    val k = sendingCont(channel)
-    Actor.actor { f(k) }
-    val msg = channel.receive { case any => any }
-    handleAsyncResult[A](msg)
+    def receive(channel: Channel[Any]) = {
+      channel.receive { case any => any }
+    }
+    callWithCC(f, receive)
   }
 
   def callWithCCWithin[A](msec: Long)(f: AsyncFunction0[A]): A = {
-    implicit val exceptionHandler = ExceptionHandler.thrower
+    def receive(channel: Channel[Any]) = {
+      channel.receiveWithin(msec) { case any => any }
+    }
+    callWithCC(f, receive)
+  }
+
+  private def callWithCC[A](f: AsyncFunction0[A], receive: Function1[Channel[Any], Any]) = {
     val channel = new Channel[Any](Actor.self)
-    val k = sendingCont(channel)
+    val k = resultCont { result: AsyncResult[A] => channel ! result ; Actor.exit }
     Actor.actor { f(k) }
-    val msg = channel.receiveWithin(msec) { case any => any }
-    handleAsyncResult[A](msg)
+    val msg = receive(channel)
+    msg match {
+      case NormalResult(value) => value.asInstanceOf[A]
+      case ExceptionResult(t) => throw t
+      case TIMEOUT => throw new TimeoutException
+    }
   }
 
 }
