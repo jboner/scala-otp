@@ -24,10 +24,10 @@
   </scm>
 
   <modules>
-    <module>behaviors</module>
     <module>binary</module>
     <module>controlflow</module>
     <module>io</module>
+    <module>behaviors</module>
     <module>mnesia</module>
   </modules>
 
