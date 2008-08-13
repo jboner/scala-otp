@@ -7,7 +7,7 @@ package scala.actors.mnesia
 /**
  * Implicit definitions converting Scala primitive types to Indexes and vice versa.
  * <p/>
- * Import into user classes in order to avoid explicit Index management: 
+ * Import into user classes in order to avoid explicit Index management:
  * <pre>
  * import scala.actors.mnesia.Index._
  * </pre>
@@ -17,9 +17,6 @@ package scala.actors.mnesia
 object Index {
   implicit def stringToIndex(value: String): StringIndex = StringIndex(value)
   implicit def indexToString(index: StringIndex): String = index.value
-
-  implicit def shortToIndex(value: Short): ShortIndex = ShortIndex(value)
-  implicit def indexToShort(index: ShortIndex): Short = index.value
 
   implicit def intToIndex(value: Int): IntIndex = IntIndex(value)
   implicit def indexToInt(index: IntIndex): Int = index.value
@@ -52,14 +49,6 @@ abstract case class Index extends Ordered[Index] {
  */
 case class StringIndex(override val value: String) extends Index {
   type T = String
-  override def hashCode: Int = HashCode.hash(HashCode.SEED, value)
-}
-
-/**
- * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
- */
-case class ShortIndex(override val value: Short) extends Index {
-  type T = Short
   override def hashCode: Int = HashCode.hash(HashCode.SEED, value)
 }
 
