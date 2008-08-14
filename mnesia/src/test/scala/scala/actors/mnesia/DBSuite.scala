@@ -17,53 +17,54 @@ case class Address(street: String, number: String, zipcode: Int, city: String, c
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-class MnesiaSuite extends TestNGSuite {
+class DBSuite extends TestNGSuite {
   val person = classOf[Person]
   val address = classOf[Address]
 
-  Mnesia.start
-  Mnesia.createTable(classOf[Person]).createTable(classOf[Address])
-  
+  DB.
+  init(Config(InMemoryStorageStrategy)).
+  start.
+  createTable(classOf[Person]).
+  createTable(classOf[Address])
+
   override protected def runTest(testName: String, reporter: Reporter, stopper: Stopper, properties: Map[String, Any]) {
     setup
     super.runTest(testName, reporter, stopper, properties)
   }
 
   @BeforeMethod
-  def setup = { 
-    Mnesia.clear
-  }
-  
+  def setup = DB.clear
+
   //@Test
   def testCreateMultipleTablesWithSameName = {
     intercept(classOf[IllegalArgumentException]) {
-      Mnesia.createTable(classOf[Person])
+      DB.createTable(classOf[Person])
     }
     assert(true === true)
   }
 
   @Test
   def testAddIndexToEmptyTable = {
-    Mnesia.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
+    DB.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
     assert(true === true)
   }
 
   @Test
   def testAddIndexNonEmptyTable = {
-    Mnesia.store(Person("Jonas"))
-    Mnesia.store(Person("Sara"))
-    Mnesia.store(Person("Kalle"))
-    Mnesia.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
+    DB.store(Person("Jonas"))
+    DB.store(Person("Sara"))
+    DB.store(Person("Kalle"))
+    DB.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
     assert(true === true)
   }
 
   @Test
   def testStoreFindAll = {
-    Mnesia.store(Person("Jonas"))
-    Mnesia.store(Person("Sara"))
-    Mnesia.store(Person("Kalle"))
+    DB.store(Person("Jonas"))
+    DB.store(Person("Sara"))
+    DB.store(Person("Kalle"))
 
-    val persons: List[Person] = Mnesia findAll person
+    val persons: List[Person] = DB findAll person
     assert(persons.size === 3)
     assert(persons(0).name === "Jonas")
     assert(persons(1).name === "Sara")
@@ -73,17 +74,17 @@ class MnesiaSuite extends TestNGSuite {
 
   @Test
   def testRemoveByPK = {
-    val jonas = Mnesia.store(Person("Jonas"))
-    val sara = Mnesia.store(Person("Sara"))
-    val kalle = Mnesia.store(Person("Kalle"))
+    val jonas = DB.store(Person("Jonas"))
+    val sara = DB.store(Person("Sara"))
+    val kalle = DB.store(Person("Kalle"))
 
     // remove by PK
-      Mnesia.remove(jonas)
-    val persons1: List[Person] = Mnesia findAll person
+      DB.remove(jonas)
+    val persons1: List[Person] = DB findAll person
     assert(persons1.size === 2)
 
-    Mnesia.remove(kalle)
-    val persons2: List[Person] = Mnesia findAll person
+    DB.remove(kalle)
+    val persons2: List[Person] = DB findAll person
     assert(persons2.size === 1)
     assert(persons2(0).name === "Sara")
 
@@ -92,13 +93,13 @@ class MnesiaSuite extends TestNGSuite {
 
   @Test
   def testRemoveByRef = {
-    val jonas = Mnesia.store(Person("Jonas"))
-    val sara = Mnesia.store(Person("Sara"))
-    val kalle = Mnesia.store(Person("Kalle"))
+    val jonas = DB.store(Person("Jonas"))
+    val sara = DB.store(Person("Sara"))
+    val kalle = DB.store(Person("Kalle"))
 
     // remove by instance
-    Mnesia.remove(Person("Kalle"))
-    val persons: List[Person] = Mnesia findAll person
+    DB.remove(Person("Kalle"))
+    val persons: List[Person] = DB findAll person
     assert(persons.size === 2)
     assert(persons(0).name === "Jonas")
     assert(persons(1).name === "Sara")
@@ -108,16 +109,16 @@ class MnesiaSuite extends TestNGSuite {
 
   @Test
   def testFindByPK = {
-    val pk = Mnesia.store(Person("Jonas"))
-    val jonas: Person = Mnesia.findByPK(pk).getOrElse(fail("failed findByPK"))
+    val pk = DB.store(Person("Jonas"))
+    val jonas: Person = DB.findByPK(pk).getOrElse(fail("failed findByPK"))
     assert(jonas.name == "Jonas")
   }
 
   @Test
   def testFindByIndex = {
-    Mnesia.store(Person("Jonas"))
-    Mnesia.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
-    val entities: List[Person] = Mnesia.findByIndex("Jonas", Column ("name", person))
+    DB.store(Person("Jonas"))
+    DB.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
+    val entities: List[Person] = DB.findByIndex("Jonas", Column ("name", person))
     assert(entities.size == 1)
     assert(entities(0).name == "Jonas")
   }

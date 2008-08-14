@@ -279,7 +279,7 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
     server = restartedServer
     reinit
   }
-  
+
   private[behavior] def getServer: GenericServer = server
 }
 
