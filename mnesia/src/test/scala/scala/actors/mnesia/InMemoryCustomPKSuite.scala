@@ -6,50 +6,47 @@ package scala.actors.mnesia
 
 import scala.actors.mnesia.Index._
 
-import org.testng.annotations.{Test, BeforeMethod}
+import org.testng.annotations.{BeforeSuite, BeforeMethod, Test}
+import org.testng.Assert._
 
 import org.scalatest.testng.TestNGSuite
 import org.scalatest._
 
-case class Person(name: String)
-case class Address(street: String, number: String, zipcode: Int, city: String, country: String)
-
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-class DBSuite extends TestNGSuite {
+class InMemoryCustomPKSuite extends TestNGSuite {
+  case class Person(name: String)
   val person = classOf[Person]
-  val address = classOf[Address]
 
   DB.
   init(Config(InMemoryStorageStrategy)).
   start.
-  createTable(classOf[Person]).
-  createTable(classOf[Address])
+  createTable(classOf[Person], "name", (v: Any) => StringIndex(v.asInstanceOf[String]))
 
   override protected def runTest(testName: String, reporter: Reporter, stopper: Stopper, properties: Map[String, Any]) {
     setup
     super.runTest(testName, reporter, stopper, properties)
   }
 
-  @BeforeMethod
+  @BeforeMethod { val groups=Array("unit") }
   def setup = DB.clear
 
-  //@Test
+  //@Test { val groups=Array("unit") }
   def testCreateMultipleTablesWithSameName = {
     intercept(classOf[IllegalArgumentException]) {
-      DB.createTable(classOf[Person])
+      DB.createTable(classOf[Person], "name", (v: Any) => StringIndex(v.asInstanceOf[String]))
     }
     assert(true === true)
   }
 
-  @Test
+  @Test { val groups=Array("unit") }
   def testAddIndexToEmptyTable = {
     DB.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
     assert(true === true)
   }
 
-  @Test
+  @Test { val groups=Array("unit") }
   def testAddIndexNonEmptyTable = {
     DB.store(Person("Jonas"))
     DB.store(Person("Sara"))
@@ -58,7 +55,7 @@ class DBSuite extends TestNGSuite {
     assert(true === true)
   }
 
-  @Test
+  @Test { val groups=Array("unit") }
   def testStoreFindAll = {
     DB.store(Person("Jonas"))
     DB.store(Person("Sara"))
@@ -66,24 +63,24 @@ class DBSuite extends TestNGSuite {
 
     val persons: List[Person] = DB findAll person
     assert(persons.size === 3)
-    assert(persons(0).name === "Jonas")
-    assert(persons(1).name === "Sara")
-    assert(persons(2).name === "Kalle")
+    assert(persons.exists(_.name == "Jonas"))
+    assert(persons.exists(_.name == "Sara"))
+    assert(persons.exists(_.name == "Kalle"))
     assert(true === true)
   }
 
-  @Test
+  @Test { val groups=Array("unit") }
   def testRemoveByPK = {
-    val jonas = DB.store(Person("Jonas"))
-    val sara = DB.store(Person("Sara"))
-    val kalle = DB.store(Person("Kalle"))
+    val pkJonas = DB.store(Person("Jonas"))
+    val pkSara = DB.store(Person("Sara"))
+    val pkKalle = DB.store(Person("Kalle"))
 
     // remove by PK
-      DB.remove(jonas)
+    DB.remove(pkJonas, person)
     val persons1: List[Person] = DB findAll person
     assert(persons1.size === 2)
 
-    DB.remove(kalle)
+    DB.remove(pkKalle, person)
     val persons2: List[Person] = DB findAll person
     assert(persons2.size === 1)
     assert(persons2(0).name === "Sara")
@@ -91,7 +88,7 @@ class DBSuite extends TestNGSuite {
     assert(true === true)
   }
 
-  @Test
+  @Test { val groups=Array("unit") }
   def testRemoveByRef = {
     val jonas = DB.store(Person("Jonas"))
     val sara = DB.store(Person("Sara"))
@@ -101,24 +98,26 @@ class DBSuite extends TestNGSuite {
     DB.remove(Person("Kalle"))
     val persons: List[Person] = DB findAll person
     assert(persons.size === 2)
-    assert(persons(0).name === "Jonas")
-    assert(persons(1).name === "Sara")
+    assert(persons.exists(_.name == "Jonas"))
+    assert(persons.exists(_.name == "Sara"))
+
+    assert(!persons.exists(_.name == "Kalle"))
 
     assert(true === true)
   }
 
-  @Test
+  @Test { val groups=Array("unit") }
   def testFindByPK = {
     val pk = DB.store(Person("Jonas"))
-    val jonas: Person = DB.findByPK(pk).getOrElse(fail("failed findByPK"))
+    val jonas: Person = DB.findByPK(pk, person).getOrElse(fail("failed findByPK"))
     assert(jonas.name == "Jonas")
   }
 
-  @Test
+  @Test { val groups=Array("unit") }
   def testFindByIndex = {
     DB.store(Person("Jonas"))
     DB.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
-    val entities: List[Person] = DB.findByIndex("Jonas", Column ("name", person))
+    val entities: List[Person] = DB.findByIndex("Jonas", "name", person)
     assert(entities.size == 1)
     assert(entities(0).name == "Jonas")
   }

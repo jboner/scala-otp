@@ -42,11 +42,25 @@ case object ReplicatedAtomicStorageStrategy extends StorageStrategy
 @serializable
 case object ReplicatedEventuallyConsistentStorageStrategy extends StorageStrategy
 
+// ----------------------------------------------
+// --- PRIMARY KEY GENERATION SCHEME MESSAGES ---
+// ----------------------------------------------
+@serializable
+abstract case class PrimaryKeySequenceScheme extends DBMessage 
+@serializable
+case class GeneratePrimaryKeySequence extends PrimaryKeySequenceScheme
+@serializable
+case class CustomPrimaryKeySequence extends PrimaryKeySequenceScheme
+
+
 // ------------------------
 // --- REQUEST MESSAGES ---
 // ------------------------
 @serializable
-case class CreateTable(table: Class[_]) extends DBMessage
+case class CreateTableWithGeneratedPK(table: Class[_], pkName: String) extends DBMessage
+@serializable
+case class CreateTableWithCustomPK(table: Class[_], pkName: String, pkIndexFactory: (Any) => Index) extends DBMessage 
+
 @serializable
 case class AddIndex(name: String, table: Class[_], indexFactory: (Any) => Index) extends DBMessage
 @serializable
@@ -55,26 +69,32 @@ case object Clear extends DBMessage
 @serializable
 case class RemoveByEntity(entity: AnyRef) extends DBMessage
 @serializable
-case class RemoveByPK(pk: PK) extends DBMessage
+case class RemoveByPK(pkName: Index, table: Class[_]) extends DBMessage
+@serializable
+case class RemoveByIndex(pkName: Index, columnName: String, table: Class[_]) extends DBMessage
 
 /** Reply message is PrimaryKey(..) */
 @serializable
 case class Store(entity: AnyRef) extends DBMessage
 
 /** Reply message is Entity(..) */
-case class FindByPK(pk: PK) extends DBMessage
-
+@serializable
+case class FindByPK(index: Index, table: Class[_]) extends DBMessage
 /** Reply message is Entities(..) */
-case class FindByIndex(index: Index, column: Column) extends DBMessage
-
+@serializable
+case class FindByIndex(index: Index, columnName: String, table: Class[_]) extends DBMessage
 /** Reply message is Entities(..) */
+@serializable
 case class FindAll(table: Class[_]) extends DBMessage
 
 //-----------------------
 // --- REPLY MESSAGES ---
 //-----------------------
-case class PrimaryKey(pk: PK) extends DBMessage
+@serializable
+case class PrimaryKey(pk: Index) extends DBMessage
+@serializable
 case class Entity(entity: Option[AnyRef]) extends DBMessage
+@serializable
 case class Entities(list: List[AnyRef]) extends DBMessage
 
 @serializable
@@ -89,6 +109,39 @@ case class Failure(message: String, cause: Option[Throwable]) extends DBMessage
 class DBException(val message: String) extends RuntimeException {
   override def getMessage: String = message
   override def toString: String = getClass.getName + ": " + message
+}
+
+/**
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
+ */
+@serializable
+case class Table(
+  clazz: Class[_], 
+  columns: List[Column], 
+  pk: Column,  
+  pkIndexFactory: (Any) => Index, 
+  pkSequenceScheme: PrimaryKeySequenceScheme,
+  var indices: List[Tuple3[Column, Field, (Any) => Index]]) {
+  override def hashCode: Int = {
+    var result = HashCode.SEED
+    result = HashCode.hash(result, clazz)
+    result = HashCode.hash(result, pk)
+    result = HashCode.hash(result, columns)
+    result
+  }
+}
+
+/**
+ * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
+ */
+@serializable
+case class Column(name: String, table: Class[_]) {
+  override def hashCode: Int = {
+    var result = HashCode.SEED
+    result = HashCode.hash(result, name)
+    result = HashCode.hash(result, table)
+    result
+  }
 }
 
 /**
@@ -136,38 +189,43 @@ object DB extends Logging {
     if (isStarted.getAndSet(false)) supervisor ! Stop
   }
 
-  def createTable(table: Class[_]): DB.type = {
-    db ! CreateTable(table)
+  def createTable(table: Class[_], pkName: String): DB.type = {
+    db ! CreateTableWithGeneratedPK(table, pkName)
     this
   }
 
-  def addIndex(name: String, table: Class[_], indexFactory: (Any) => Index): DB.type = {
-    db ! AddIndex(name, table, indexFactory)
+  def createTable(table: Class[_], pkName: String, pkIndexFactory: (Any) => Index): DB.type = {
+    db ! CreateTableWithCustomPK(table, pkName, pkIndexFactory)
     this
   }
 
-  def store(entity: AnyRef): PK = {
+  def addIndex(columnName: String, table: Class[_], indexFactory: (Any) => Index): DB.type = {
+    db ! AddIndex(columnName, table, indexFactory)
+    this
+  }
+
+  def store(entity: AnyRef): Index = {
     val result: Option[PrimaryKey] = db !!! Store(entity)
     result match {
-      case Some(PrimaryKey(pk)) => pk
+      case Some(PrimaryKey(pkIndex)) => pkIndex
       case None => throw new DBException("Could not store entity <" + entity + ">")
     }
   }
 
   def remove(entity: AnyRef) = db ! RemoveByEntity(entity)
 
-  def remove(pk: PK) = db ! RemoveByPK(pk)
+  def remove(pkIndex: Index, table: Class[_]) = db ! RemoveByPK(pkIndex, table)
 
-  def findByPK[T <: AnyRef](pk: PK): Option[T] = {
-    val result: Option[Entity] = db !!! FindByPK(pk)
+  def findByPK[T <: AnyRef](index: Index, table: Class[_]): Option[T] = {
+    val result: Option[Entity] = db !!! FindByPK(index, table)
     result match {
       case Some(Entity(entity)) => entity.asInstanceOf[Option[T]]
       case None => None
     }
-  }
+ }
 
-  def findByIndex[T <: AnyRef](index: Index, column: Column): List[T] = {
-    val result: Option[Entities] = db !!! FindByIndex(index, column)
+  def findByIndex[T <: AnyRef](index: Index, columnName: String, table: Class[_]): List[T] = {
+    val result: Option[Entities] = db !!! FindByIndex(index, columnName, table)
     result match {
       case Some(Entities(entities)) => entities.asInstanceOf[List[T]]
       case None => List[T]()
@@ -194,42 +252,6 @@ object DB extends Logging {
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-@serializable
-abstract case class PK extends Ordered[PK] {
-  val value: Long
-  val table: Class[_]
-  def compare(that: PK): Int = this.value.toInt - that.value.toInt
-}
-
-/**
- * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
- */
-@serializable
-case class Table(clazz: Class[_], columns: List[Column], var indices: List[Tuple3[Column, Field, (Any) => Index]]) {
-  override def hashCode: Int = {
-    var result = HashCode.SEED
-    result = HashCode.hash(result, clazz)
-    result = HashCode.hash(result, columns)
-    result
-  }
-}
-
-/**
- * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
- */
-@serializable
-case class Column(name: String, table: Class[_]) {
-  override def hashCode: Int = {
-    var result = HashCode.SEED
-    result = HashCode.hash(result, name)
-    result = HashCode.hash(result, table)
-    result
-  }
-}
-
-/**
- * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
- */
 private[mnesia] class DB extends GenericServer with Logging {
 
   private var storage: Storage = _
@@ -249,10 +271,11 @@ private[mnesia] class DB extends GenericServer with Logging {
   }
 
   override def body: PartialFunction[Any, Unit] = {
-    case CreateTable(table) =>
+    
+    case CreateTableWithGeneratedPK(table, pkName) =>
       log.info("Creating table <{}>", table)
       try {
-        storage.createTable(table)
+        storage.createTable(table, pkName)
       } catch {
         case e => log.error("Could not create table due to: {}", e.getMessage)
         e.printStackTrace
@@ -260,10 +283,21 @@ private[mnesia] class DB extends GenericServer with Logging {
         throw e
       }
 
-    case AddIndex(name, table, indexFactory) =>
-      log.info("Adding index <{}@{}>", name, table.getName)
+    case CreateTableWithCustomPK(table, pkName, pkIndexFactory) =>
+      log.info("Creating table <{}>", table)
       try {
-        storage.addIndex(name, table, indexFactory)
+        storage.createTable(table, pkName, pkIndexFactory)
+      } catch {
+        case e => log.error("Could not create table due to: {}", e.getMessage)
+        e.printStackTrace
+        // FIXME: reply with Failure
+        throw e
+      }
+
+    case AddIndex(columnName, table, indexFactory) =>
+      log.info("Adding index <{}@{}>", columnName, table.getName)
+      try {
+        storage.addIndex(columnName, table, indexFactory)
       } catch {
         case e => log.error("Could not create index due to: {}", e.getMessage)
         e.printStackTrace
@@ -293,32 +327,32 @@ private[mnesia] class DB extends GenericServer with Logging {
         throw e
       }
 
-    case RemoveByPK(pk) =>
-      log.debug("Removing entity with primary key <{}>", pk)
+    case RemoveByPK(pkIndex, table) =>
+      log.debug("Removing entity with primary key <{}> and table <{}>", pkIndex, table)
       try {
-        storage.remove(pk)
+        storage.removeByPK(pkIndex, table)
       } catch {
-        case e => log.error("Could not remove entity with primary key <{}> due to: {}", pk, e.getMessage)
+        case e => log.error("Could not remove entity with primary key <{}> due to: {}", pkIndex, e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e
       }
 
-    case FindByPK(pk) =>
-      log.debug("Finding entity with primary key <{}>", pk)
+    case FindByPK(index, table) =>
+      log.debug("Finding entity by primary key <{}> and table <{}>", index, table)
       try {
-        reply(Entity(storage.findByPK(pk)))
+        reply(Entity(Some(storage.findByPK(index, table))))
       } catch {
-        case e => log.error("Could not find entity by primary key <{}> due to: {}", pk, e.getMessage)
+        case e => log.error("Could not find entity by primary key <{}> due to: {}", index, e.getMessage)
         e.printStackTrace
         // FIXME: reply with Failure
         throw e
       }
 
-    case FindByIndex(index, column) =>
-      log.debug("Finding entity by its index <{}>", index)
+    case FindByIndex(index, columnName, table) =>
+      log.debug("Finding entity by index <{}> and table <{}>", columnName, table)
       try {
-        reply(Entities(storage.findByIndex(index, column)))
+        reply(Entities(storage.findByIndex(index, columnName, table)))
       } catch {
         case e => log.error("Could not find entity by index <{}> due to: {}", index, e.getMessage)
         e.printStackTrace
@@ -364,75 +398,97 @@ private[mnesia] class DB extends GenericServer with Logging {
 private[mnesia] abstract class Storage(protected val schema: Map[Class[_], Table]) {
 
   // FIXME: update to ConcurrentHashMaps???
-  protected val db =          Map[Column, Treap[PK, AnyRef]]()
-  protected val indices =     Map[Column, Treap[Index, Map[PK, AnyRef]]]()
-  protected val identityMap = Map[AnyRef, PK]()
+  protected val db =          Map[Column, Treap[Index, AnyRef]]()
+  protected val indices =     Map[Column, Treap[Index, Map[Index, AnyRef]]]()
 
   protected val dbLock =      new ReadWriteLock
   protected val indexLock =   new ReadWriteLock
 
-  @serializable
-  protected case class PKImpl(override val value: Long, override val table: Class[_]) extends PK
-
   /**
    * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
    */
-  protected object PK {
-    val name = "PK"
+  private[mnesia] object PKFactory {
     val keys = Map[Class[T] forSome {type T}, AtomicLong]()
-
+    val indexFactory = (key: Any) => key.asInstanceOf[PK]
     def init(table: Class[_]) = dbLock.withReadLock {
       val currrentIndex =
-        if (db.contains(getPrimaryKeyColumnFor(table))) {
-          val treap = db(getPrimaryKeyColumnFor(table))
+        if (db.contains(getPKColumnFor(table))) {
+          val treap = db(getPKColumnFor(table))
           if (!treap.isEmpty) treap.lastKey.value.asInstanceOf[Long] else 1L
         } else 1L
       keys += table -> new AtomicLong(currrentIndex)
-   }
-
-    def next(table: Class[_]): PK = {
-      if (!keys.contains(table)) throw new IllegalStateException("Primary key generator for table <" + table.getName + "> has not been initialized")
-      PKImpl(keys(table).getAndIncrement, table)
     }
 
-    def getPrimaryKeyColumnFor(table: Class[_]) = Column(name, table)
+    def next(table: Class[_]): PK = {
+      if (!keys.contains(table)) init(table) //throw new IllegalStateException("Primary key generator for table <" + table.getName + "> has not been initialized")
+      val pk = PK(keys(table).getAndIncrement)
+      pk.table = table
+      pk
+    }
   }
 
-  def createTable(table: Class[_]) = {
+  def createTable(table: Class[_], pkName: String) = {
+    try {
+    val pkColumn = Column(pkName, table)
+
+    // FIXME: optimize - now we have to refletive calls to getDeclaredFields
     val columns: List[Column] = for (field <- table.getDeclaredFields.toList if field.getName != "$outer")
                                 yield Column(field.getName, field.getType)
+    log.info("Creating table <{}> with columns <{}>", table.getName, columns)
 
+    val pkField = table.getDeclaredFields.toList.find(field => field.getName == pkName).getOrElse(throw new IllegalArgumentException("Primary key field <" + pkName + "> does not exist"))
+    if (pkField.getType != classOf[PK]) throw new IllegalArgumentException("Primary key field <" + pkName + "> for table <" + table.getName + "> has to be of type <PK>")
+
+    if (schema.contains(table)) throw new IllegalArgumentException("Table <" + table.getName + "> already exists")
+      schema += table -> Table(table, columns, pkColumn, PKFactory.indexFactory, GeneratePrimaryKeySequence(), Nil)
+
+    dbLock.withWriteLock { 
+      db += getPKColumnFor(table) -> new Treap[Index, AnyRef] 
+      addIndex(pkName, table, PKFactory.indexFactory)    
+    }
+    } catch { case e => e.printStackTrace; e }
+  }
+
+  def createTable(table: Class[_], pkName: String, pkIndexFactory: (Any) => Index) = {
+    val pkColumn = Column(pkName, table)
+    val columns: List[Column] = for (field <- table.getDeclaredFields.toList if field.getName != "$outer")
+                                yield Column(field.getName, field.getType)
     log.info("Creating table <{}> with columns <{}>", table.getName, columns)
 
     if (schema.contains(table)) throw new IllegalArgumentException("Table <" + table.getName + "> already exists")
-    schema += table -> Table(table, columns, Nil)
+    schema += table -> Table(table, columns, pkColumn, pkIndexFactory, CustomPrimaryKeySequence(), Nil)
 
-    dbLock.withWriteLock {
-      PK.init(table)
-      db += PK.getPrimaryKeyColumnFor(table) -> new Treap[PK, AnyRef]
+    dbLock.withWriteLock { 
+      db += getPKColumnFor(table) -> new Treap[Index, AnyRef] 
+      addIndex(pkName, table, pkIndexFactory)    
     }
   }
 
-  def addIndex(name: String, table: Class[_], indexFactory: (Any) => Index) = dbLock.withWriteLock { indexLock.withWriteLock {
-    val field = try { table.getDeclaredField(name) } catch { case e => throw new IllegalArgumentException("Could not create index <" + name + "> for table <" + table.getName + "> due to: " + e.toString) }
-    field.setAccessible(true)
+  def addIndex(columnName: String, table: Class[_], indexFactory: (Any) => Index) = dbLock.withWriteLock { indexLock.withWriteLock {
+    val field = try { 
+      val field = table.getDeclaredField(columnName) 
+      field.setAccessible(true)
+      field
+    } catch { 
+      case e => throw new IllegalArgumentException("Could not get index <" + columnName + "> for table <" + table.getName + "> due to: " + e.toString) 
+    }
 
-    val currentDB = db(PK.getPrimaryKeyColumnFor(table))
-    val emptyTreap = new Treap[Index, Map[PK, AnyRef]]()
+    val currentDB = db(getPKColumnFor(table))
+    val emptyTreap = new Treap[Index, Map[Index, AnyRef]]()
 
     val fullTreap = currentDB.elements.foldLeft(emptyTreap) { (indexMap, entry) => {
       val entity = entry._2
-      val index = createIndexFor(field, entity, indexFactory)
+      val index = indexFactory(field.get(entity))
       indexMap.get(index) match {
         case Some(entities) =>
-          entities += getPKFor(entity) -> entity
+          entities += getPKIndexFor(entity) -> entity
           indexMap
         case None =>
-          indexMap.upd(index, Map[PK, AnyRef](getPKFor(entity) -> entity))
+          indexMap.upd(index, Map[Index, AnyRef](getPKIndexFor(entity) -> entity))
       }
     }}
 
-    val column = Column(name, table)
+    val column = Column(columnName, table)
 
     // add index to index table
     indices += column -> fullTreap
@@ -441,32 +497,42 @@ private[mnesia] abstract class Storage(protected val schema: Map[Class[_], Table
     val schemaTable = schema(table)
     schemaTable.indices = (column, field, indexFactory) :: schemaTable.indices
 
-    log.info("Index <{}> for table <{}> has been compiled", name, table.getName)
+    log.info("Index <{}> for table <{}> has been compiled", columnName, table.getName)
   }}
 
-  def store(entity: AnyRef): PK = dbLock.withWriteLock {
-    val table = entity.getClass
-    ensureTableExists(table)
+  def store(entity: AnyRef): Index = dbLock.withWriteLock {
+    val tableClass = entity.getClass
+    ensureTableExists(tableClass)
+    val table = schema(tableClass)
+    val pkColumn = getPKColumnFor(tableClass)
 
-    val pk = getPKFor(entity)
+    // get and set primary key
+    val pkIndex = table.pkSequenceScheme match {
+      case GeneratePrimaryKeySequence() => 
+        val pk = PKFactory.next(tableClass)
+        setIndexFor(entity, pkColumn.name, pk)
+        pk
+      case CustomPrimaryKeySequence() => 
+        getPKIndexFor(entity)
+    }    
 
-    val pkIndex = PK.getPrimaryKeyColumnFor(table)
-    db(pkIndex) = db(pkIndex).upd(pk, entity)
+    // update db
+    db(pkColumn) = db(pkColumn).upd(pkIndex, entity)
 
     // update indices
-    schema(table).indices.foreach { item =>
+    table.indices.foreach { item =>
       val (column, field, indexFactory) = item
       val indexMap = indices(column)
-      val index = createIndexFor(field, entity, indexFactory)
+      val index = getIndexFor(entity, column.name)
       indexMap.get(index) match {
         case Some(entities) =>
-          entities += getPKFor(entity) -> entity
-        case None =>
+         entities += getPKIndexFor(entity) -> entity
+       case None =>
           addIndex(column.name, column.table, indexFactory)
-          indexMap.upd(index, Map[PK, AnyRef](getPKFor(entity) -> entity))
+          indexMap.upd(index, Map[Index, AnyRef](getPKIndexFor(entity) -> entity))
       }
     }
-    pk
+    pkIndex
   }
 
   def remove(entity: AnyRef) = dbLock.withWriteLock { indexLock.withWriteLock {
@@ -474,71 +540,143 @@ private[mnesia] abstract class Storage(protected val schema: Map[Class[_], Table
     ensureTableExists(table)
     ensureEntityExists(entity)
 
-    val index = PK.getPrimaryKeyColumnFor(table)
-    val pk = identityMap(entity)
-    val newTreap = db(index).del(pk)
-
-    db(index) = newTreap
-    identityMap - entity
-
-    // FIXME: remove entity from all (0..N) indices it is stored in
-  }}
-
-  def remove(pk: PK) = dbLock.withWriteLock { indexLock.withWriteLock {
-    ensureTableExists(pk.table)
-
-    val index = PK.getPrimaryKeyColumnFor(pk.table)
-    val entity = db(index).get(pk)
-    val newTreap = db(index).del(pk)
-
-    db(index) = newTreap
-    identityMap - entity
+    val pkColumn = getPKColumnFor(table)
+    val pkIndex = getPKIndexFor(entity)
+    val oldTreap = db(pkColumn)
+    val newTreap = oldTreap.del(pkIndex)
+    db(pkColumn) = newTreap
 
     // FIXME: remove entity from all (0..N) indices it is stored in
   }}
 
-  def findByPK(pk: PK): Option[AnyRef] = dbLock.withReadLock {
-    ensureTableExists(pk.table)
-    db(PK.getPrimaryKeyColumnFor(pk.table)).get(pk)
+  def removeByPK(pkIndex: Index, table: Class[_]) = dbLock.withWriteLock { indexLock.withWriteLock {
+    ensureTableExists(table)
+    val pkColumn = getPKColumnFor(table)
+    if (!db.contains(pkColumn)) throw new IllegalArgumentException("Primary key <" + pkColumn.name + "> for table <" + table.getName + "> does not exist")
+
+    val newTreap = db(pkColumn).del(pkIndex)
+    db(pkColumn) = newTreap
+
+    // FIXME: remove entity from all (0..N) indices it is stored in
+  }}
+
+  // FIXME: implement
+  def removeByIndex(index: Index, columnName: String, table: Class[_]) = {}
+
+  def findByPK(pkIndex: Index, table: Class[_]): AnyRef = {
+    ensureTableExists(table)
+    val pkColumn = getPKColumnFor(table)
+    db(pkColumn).get(pkIndex).getOrElse(throw new IllegalStateException("No such primary key <" + pkIndex + "> for table <" + table.getName + ">"))
   }
 
-  def findByIndex(index: Index, column: Column): List[AnyRef] = indexLock.withReadLock {
-    ensureTableExists(column.table)
+  def findByIndex(index: Index, columnName: String, table: Class[_]): List[AnyRef] = indexLock.withReadLock {
+    ensureTableExists(table)
+    val column = getColumnFor(columnName, table)
     ensureIndexExists(column)
-    indices(column).get(index).getOrElse(throw new IllegalStateException("No such index <" + index + "> for column <" + column + ">")).values.toList
+    indices(column).get(index).getOrElse(throw new IllegalStateException("No such index <" + columnName + "> for table <" + table.getName + ">")).values.toList
   }
 
   def findAll(table: Class[_]): List[AnyRef] = dbLock.withReadLock {
     ensureTableExists(table)
-    db(PK.getPrimaryKeyColumnFor(table)).values.toList
+    db(getPKColumnFor(table)).values.toList
   }
+
+  def size(table: Class[_]): Int = db(getPKColumnFor(table)).size
+
+  // =======================
+
+  // FIXME: implement these for Index as well OR get rid of PK and only use Index
+
+//   /**
+//    * Returns the last key of the table.
+//    */
+//   def lastPK(table: Class[_]): Index = {
+//     ensureTableExists(table)
+//     db(PK.getPrimaryKeyColumnFor(table)).lastKey
+//   }
+
+//   /**
+//    * Creates a ranged projection of this collection with both a lower-bound and an upper-bound.
+//    */
+//   def range(from: PK, until: PK): List[AnyRef] = {
+//     assert(from.table == until.table)
+//     ensureTableExists(from.table)
+//     db(PK.getPrimaryKeyColumnFor(from.table)).range(from, until).values.toList
+//   }
+
+//   /**
+//    * Creates a ranged projection of this collection with no upper-bound.
+//    */
+//   def from(from: PK) : List[AnyRef] = {
+//     ensureTableExists(from.table)
+//     db(PK.getPrimaryKeyColumnFor(from.table)).from(from).values.toList
+//   }
+
+//   /**
+//    * Creates a ranged projection of this collection with no lower-bound.
+//    */
+//   def until(until: PK): List[AnyRef] = {
+//     ensureTableExists(until.table)
+//     db(PK.getPrimaryKeyColumnFor(until.table)).until(until).values.toList
+//   }
+
+  // FIXME: implement these union/intersect/diff
+
+//   def union(that: Treap[A, B]): Treap[A, B] 
+//   def intersect(that: Treap[A, B]): Treap[A, B]
+//   def diff(that: Treap[A, B]): Treap[A, B] 
+
+  // =======================
 
   def clear = dbLock.withWriteLock { indexLock.withWriteLock {
     db.clear
-    identityMap.clear
     indices.clear
-    for (table <- schema.values) db += PK.getPrimaryKeyColumnFor(table.clazz) -> new Treap[PK, AnyRef]
+    for (table <- schema.values) db += getPKColumnFor(table.clazz) -> new Treap[Index, AnyRef]
     for {
       table <- schema.values
       (column, field, indexFactory) <- table.indices
-    } indices += column -> new Treap[Index, Map[PK, AnyRef]]()
+    } indices += column -> new Treap[Index, Map[Index, AnyRef]]()
   }}
 
-  protected def createIndexFor(field: Field, entity: AnyRef, indexFactory: (Any) => Index): Index =
-    indexFactory(field.get(entity))
+  protected def getPKColumnFor(table: Class[_]): Column = {
+    if (!schema.contains(table)) throw new IllegalStateException("Table <" + table.getName + "> does not exist")
+    schema(table).pk
+  }
 
-  // FIXME: should use reflection to retrieve the id field in the entity (dump the identityMap)
-  protected def getPKFor(entity: AnyRef): PK = {
-    if (identityMap.contains(entity)) identityMap(entity)
-    else {
-      val pk = PK.next(entity.getClass)
-      identityMap += entity -> pk
-      pk
+  protected def getColumnFor(name: String, table: Class[_]): Column = {
+    if (!schema.contains(table)) throw new IllegalStateException("Table <" + table.getName + "> does not exist")
+    Column(name, table)
+  }
+
+  protected def getPKIndexFor(entity: AnyRef): Index = {
+    val tableClass = entity.getClass
+    if (!schema.contains(tableClass)) throw new IllegalStateException("Table <" + tableClass.getName + "> does not exist")
+    getIndexFor(entity, schema(tableClass).pk.name)
+  }
+
+  // FIXME: store away index field in the schema 
+  protected def getIndexFor(entity: AnyRef, columnName: String): Index = dbLock.withReadLock {
+    try { 
+      val (_, field, indexFactory) = schema(entity.getClass).indices.find(item => item._1.name == columnName).getOrElse(throw new IllegalArgumentException("Could not get primary key <" + columnName + "> for table <" + entity.getClass.getName + ">: no such column"))
+      indexFactory(field.get(entity))
+    } catch { 
+      case e => throw new IllegalArgumentException("Could not get index <" + columnName + "> for table <" + entity.getClass.getName + "> due to: " + e.toString) 
+    }
+  }
+
+  // FIXME: store away index field in the schema 
+  protected def setIndexFor(entity: AnyRef, columnName: String, index: Index) = dbLock.withWriteLock {
+    try { 
+      val (_, field, _) = schema(entity.getClass).indices.find(item => item._1.name == columnName).getOrElse(throw new IllegalArgumentException("Could not get primary key <" + columnName + "> for table <" + entity.getClass.getName + ">: no such column"))
+      field.set(entity, index)
+      println("entity: " + entity) 
+    } catch { 
+      case e => throw new IllegalArgumentException("Could not get primary key <" + columnName + "> for table <" + entity.getClass.getName + "> due to: " + e.toString) 
     }
   }
 
   protected def ensureTableExists(table: Class[_]) = dbLock.withReadLock {
-    if (!db.contains(Column(PK.name, table))) throw new IllegalArgumentException("Table [" + table.getName + "] does not exist")
+    if (!db.contains(Column(schema(table).pk.name, table))) throw new IllegalArgumentException("Table [" + table.getName + "] does not exist")
   }
 
   protected def ensureIndexExists(index: Column) = indexLock.withReadLock {
@@ -546,7 +684,7 @@ private[mnesia] abstract class Storage(protected val schema: Map[Class[_], Table
   }
 
   protected def ensureEntityExists(entity: AnyRef) = dbLock.withReadLock {
-    if (!identityMap.contains(entity)) throw new IllegalArgumentException("Entity [" + entity + "] is not managed")
+    if (!db.contains(getPKColumnFor(entity.getClass))) throw new IllegalArgumentException("Entity [" + entity + "] is not managed")
   }
 }
 
@@ -566,67 +704,69 @@ private[mnesia] class EvictableStorage(schema: Map[Class[_], Table], val timeout
     def evict_? = timeNow - timestamp > timeout
   }
 
-  override def store(entity: AnyRef): PK = dbLock.withWriteLock {
-    val evictable = Evictable(entity, timeout)
-    val table = entity.getClass
-    ensureTableExists(table)
+//   override def store(entity: AnyRef): PK = dbLock.withWriteLock {
+//     val evictable = Evictable(entity, timeout)
+//     val table = entity.getClass
+//     ensureTableExists(table)
 
-    // update db
-    val pk = getPKFor(entity)
-    val pkIndex = PK.getPrimaryKeyColumnFor(table)
-    db(pkIndex) = db(pkIndex).upd(pk, evictable)
+//     // update db
+//     val pk = getPKFor(entity)
+//     val pkIndex = PK.getPrimaryKeyColumnFor(table)
+//     db(pkIndex) = db(pkIndex).upd(pk, evictable)
 
-    // update indices
-    schema(table).indices.foreach { item =>
-      val (column, field, indexFactory) = item
-      val indexMap = indices(column)
-      val index = createIndexFor(field, entity, indexFactory)
-      indexMap.get(index) match {
-        case Some(evictables) =>
-          evictables += getPKFor(entity) -> evictable
-        case None =>
-          addIndex(column.name, column.table, indexFactory)
-          indexMap.upd(index, Map[PK, AnyRef](getPKFor(entity) -> evictable))
-      }
-    }
-    pk
-  }
+//     // update indices
+//     schema(table).indices.foreach { item =>
+//       val (column, field, indexFactory) = item
+//       val indexMap = indices(column)
+//       val index = createIndexFor(field, entity, indexFactory)
+//       indexMap.get(index) match {
+//         case Some(evictables) =>
+//           evictables += getPKFor(entity) -> evictable
+//         case None =>
+//           addIndex(column.name, column.table, indexFactory)
+//           indexMap.upd(index, Map[PK, AnyRef](getPKFor(entity) -> evictable))
+//       }
+//     }
+//     pk
+//   }
 
-  override def findByPK(pk: PK): Option[AnyRef] = dbLock.withReadLock {
-    ensureTableExists(pk.table)
+//   override def findByPK(pk: PK): Option[AnyRef] = dbLock.withReadLock {
+//     ensureTableExists(pk.table)
     
-    db(PK.getPrimaryKeyColumnFor(pk.table)).get(pk) match {
-      case None => None
-      case Some(entity) => 
-        val evictable = entity.asInstanceOf[Evictable]
-        if (evictable.evict_?) {
-          remove(evictable.entity) // remove the evicted entity
-          None
-        } else Some(evictable.entity)
-    }
-  }
+//     db(PK.getPrimaryKeyColumnFor(pk.table)).get(pk) match {
+//       case None => None
+//       case Some(entity) => 
+//         val evictable = entity.asInstanceOf[Evictable]
+//         if (evictable.evict_?) {
+//           remove(evictable.entity) // remove the evicted entity
+//           None
+//         } else Some(evictable.entity)
+//     }
+//   }
 
-  override def findByIndex(index: Index, column: Column): List[AnyRef] = indexLock.withReadLock {
-    ensureTableExists(column.table)
-    ensureIndexExists(column)
-    val evictables = 
-      indices(column).get(index).
-      getOrElse(throw new IllegalStateException("No such index <" + index + "> for column <" + column + ">")).
-      values.toList.asInstanceOf[List[Evictable]]
-    if (evictables.exists(_.evict_?)) { // if one evictable is found then evict the whole result set
-      evictables.foreach(remove(_))
-      List[AnyRef]()
-    }
-    else evictables.map(_.entity)
-  }
+//   override def findByIndex(index: Index, column: Column): List[AnyRef] = indexLock.withReadLock {
+//     ensureTableExists(column.table)
+//     ensureIndexExists(column)
+//     val evictables = 
+//       indices(column).get(index).
+//       getOrElse(throw new IllegalStateException("No such index <" + index + "> for column <" + column + ">")).
+//       values.toList.asInstanceOf[List[Evictable]]
+//     if (evictables.exists(_.evict_?)) { // if one evictable is found then evict the whole result set
+//       evictables.foreach(remove(_))
+//       List[AnyRef]()
+//     }
+//     else evictables.map(_.entity)
+//   }
 
-  override def findAll(table: Class[_]): List[AnyRef] = dbLock.withReadLock {
-    ensureTableExists(table)
-    val evictables = db(PK.getPrimaryKeyColumnFor(table)).values.toList.asInstanceOf[List[Evictable]]
-    if (evictables.exists(_.evict_?)) { // if one evictable is found then evict the whole result set
-      evictables.foreach(evictable => remove(evictable.entity))
-      List[AnyRef]()
-    }
-    else evictables.map(_.entity)
-  }
+//   override def findAll(table: Class[_]): List[AnyRef] = dbLock.withReadLock {
+//     ensureTableExists(table)
+//     val evictables = db(PK.getPrimaryKeyColumnFor(table)).values.toList.asInstanceOf[List[Evictable]]
+//     if (evictables.exists(_.evict_?)) { // if one evictable is found then evict the whole result set
+//       evictables.foreach(evictable => remove(evictable.entity))
+//       List[AnyRef]()
+//     }
+//     else evictables.map(_.entity)
+//   }
 }
+
+

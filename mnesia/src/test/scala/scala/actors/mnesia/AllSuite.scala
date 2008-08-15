@@ -11,7 +11,8 @@ import org.scalatest._
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class AllSuite extends SuperSuite(
-  new DBSuite ::
+  new InMemoryCustomPKSuite ::
+  new InMemoryGeneratedPKSuite ::
   new TreapSuite ::
   Nil
 )
