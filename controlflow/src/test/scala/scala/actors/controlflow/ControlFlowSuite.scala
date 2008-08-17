@@ -10,7 +10,9 @@ import org.scalacheck.Gen
 import org.scalacheck.Prop._
 import org.scalatest._
 
+import scala.actors.controlflow._
 import scala.actors.controlflow.ControlFlow._
+import scala.actors.controlflow.ControlFlowTestHelper._
 
 /**
  * Tests for control flow.
@@ -19,20 +21,16 @@ import scala.actors.controlflow.ControlFlow._
  */
 class ControlFlowSuite extends TestNGSuite with Checkers {
 
-  // XXX: Make shared function.
-  private[this] def asyncTest(msec: Long)(body: => Unit) =
-    callWithCCWithin(msec) (asAsync(() => body))
-
   @Test
   def testExceptionHandler = {
-    asyncTest(1000) {
+    asyncTest(10000) {
       val caller = Actor.self
       class TestException extends java.lang.Exception
       try {
-        callWithCC { k: Cont[Unit] => 
+        { fc: FC[Unit] => 
           assert(Actor.self != caller) // Should be running in a different actor.
           throw new TestException
-        }
+        }.toFunction.apply
         fail("Expected Exception to be thrown.")
       } catch {
         case te: TestException => () // Desired result.
@@ -43,15 +41,15 @@ class ControlFlowSuite extends TestNGSuite with Checkers {
 
   @Test
   def testCallWithCCExceptionHandler = {
-    asyncTest(1000) {
+    asyncTest(10000) {
       val caller = Actor.self
       class TestException extends java.lang.Exception
       try {
-        callWithCC { k: Cont[Unit] => 
-          import k.exceptionHandler
+        { fc: FC[Unit] => 
+          import fc.implicitThr
           assert(Actor.self != caller) // Should be running in a different actor.
           throw new TestException
-        }
+        }.toFunction.apply
         fail("Expected Exception to be thrown.")
       } catch {
         case te: TestException => () // Desired result.
@@ -62,18 +60,18 @@ class ControlFlowSuite extends TestNGSuite with Checkers {
 
   @Test
   def testExceptionHandlerChaining = {
-    asyncTest(1000) {
+    asyncTest(10000) {
       val caller = Actor.self
       class TestException extends java.lang.Exception
       try {
-        callWithCC { k: Cont[Unit] => 
-          import k.exceptionHandler
-          val asyncFunction: AsyncFunction0[Unit] = asAsync { () => }
+        { fc: FC[Unit] => 
+          import fc.implicitThr
+          val asyncFunction: AsyncFunction0[Unit] = { () => }.toAsyncFunction
           asyncFunction { () =>
             assert(Actor.self != caller) // Should be running in a different actor.
             throw new TestException
           }
-        }
+        }.toFunction.apply
         fail("Expected Exception to be thrown.")
       } catch {
         case te: TestException => () // Desired result.

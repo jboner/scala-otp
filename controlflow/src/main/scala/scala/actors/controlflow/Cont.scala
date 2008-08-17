@@ -7,10 +7,16 @@ import scala.actors._
  */
 trait Cont[-R] {
 
+  /**
+   * Continue with this continuation, supplying the given value to the future
+   * computation. This method never executes normally; it will always throw an
+   * exception. These exceptions are used to manage the control flow, so should
+   * never be caught by the calling code. Calling code can use
+   * <code>ControlFlow.isControlFlowThrowable()</code> to determine whether or
+   * not an exception can be caught.
+   *
+   * @param value The value to supply to the following computation.
+   */
   def apply(value: R): Nothing
-
-  final def exception(t: Throwable): Nothing = exceptionHandler.handle(t)
-
-  implicit val exceptionHandler: ExceptionHandler
 
 }

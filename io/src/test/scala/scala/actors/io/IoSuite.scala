@@ -33,8 +33,8 @@ class IoSuite extends TestNGSuite with Checkers {
     val binary = Binary.fromString("Hello ") ++ Binary.fromString("world!")
     val address = new InetSocketAddress("localhost", 12345)
 
-    val result = callWithCC { k: Cont[Binary] =>
-      import k.exceptionHandler
+    val result = { fc: FC[Binary] =>
+      import fc.implicitThr
       val selector = new RichSelector
       val ssc = ServerSocketChannel.open
       ssc.configureBlocking(false)
@@ -58,10 +58,10 @@ class IoSuite extends TestNGSuite with Checkers {
         sc2.configureBlocking(false)
         val rsc2 = new RichSocketChannel(sc2, selector)
         println("Connecting")
-        rsc2.asyncConnect(address) { () => println("Receiving") ; rsc2.asyncReadAll(k) }
+        rsc2.asyncConnect(address) { () => println("Receiving") ; rsc2.asyncReadAll(fc) }
       }
       Actor.exit
-    }
+    }.toFunction.apply
     println("Received: " + new String(result.toArray))
     assert(result == binary)
   }

@@ -38,16 +38,16 @@ class RichSelector(val selector: Selector) {
         val currentInterestOps = key.interestOps
         val readyOps = key.readyOps
         val actualReadyOps = key.interestOps & key.readyOps // readyOps is not always updated by the Selector
-        var opMap = key.attachment.asInstanceOf[Map[Operation,Queue[Cont[Unit]]]]
+        var opMap = key.attachment.asInstanceOf[Map[Operation,Queue[FC[Unit]]]]
         //println("RichSelector: "+ key + " readyOps: " + actualReadyOps)
         // Process each ready op
         for (op <- OPS if ((actualReadyOps & op.mask) != 0)) {
           //println("RichSelector: " + op + " ready.")
           val opEntry = opMap(op)
-          for (k <- opEntry) {
+          for (fc <- opEntry) {
             registrationsFinished += 1
-            //println("RichSelector: calling k.")
-            Actor.actor { k(()) }
+            //println("RichSelector: calling fc.")
+            Actor.actor { fc.ret(()) }
           }
           opMap = opMap - op
         }
@@ -74,8 +74,7 @@ class RichSelector(val selector: Selector) {
   }
 
   // note: method blocks until operation registered - could callback instead?
-  def register(ch: SelectableChannel, op: Operation)(k: Cont[Unit]): Unit = {
-    println("RichSelector: registering for " + op + ".")
+  def register(ch: SelectableChannel, op: Operation)(fc: FC[Unit]): Unit = {
     val key = ch.register(selector, 0, Map())
     key.synchronized { // XXX: Synchronize on ch.blockingLock instead?
       val currentInterestOps = key.interestOps
@@ -86,9 +85,9 @@ class RichSelector(val selector: Selector) {
         //println("RichSelector: setting interestOps: " + newInterestOps)
         key.interestOps(newInterestOps)
       }
-      val oldOpMap = key.attachment.asInstanceOf[Map[Operation,Queue[Cont[Unit]]]]
+      val oldOpMap = key.attachment.asInstanceOf[Map[Operation,Queue[FC[Unit]]]]
       val oldOpEntry = oldOpMap.getOrElse(op, Queue.Empty)
-      val newOpEntry = oldOpEntry + k
+      val newOpEntry = oldOpEntry + fc
       val newOpMap = oldOpMap + ((op, newOpEntry))
       key.attach(newOpMap)
     }

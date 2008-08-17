@@ -7,29 +7,29 @@ import scala.binary.Binary
 
 class RichInputStream(in: InputStream) {
 
-  def asyncRead(k: Cont[Option[Binary]]) = {
+  def asyncRead(fc: FC[Option[Binary]]) = {
     val buffer = new Array[Byte](256)
-    val lengthRead = try { in.read(buffer) } catch { case t => k.exception(t) }
+    val lengthRead = try { in.read(buffer) } catch { case t => fc.thr(t) }
     if (lengthRead == -1) {
-      k(None)
+      fc.ret(None)
     } else {
       val binary = Binary.fromArray(buffer, 0, lengthRead)
-      k(Some(binary))
+      fc.ret(Some(binary))
     }
   }
 
-  def asyncReadAll(k: Cont[AsyncStream[Binary]]): Nothing = {
+  def asyncReadAll(fc: FC[AsyncStream[Binary]]): Nothing = {
     val buffer = new Array[Byte](256)
-    def readNext(k: Cont[AsyncStream[Binary]]): Nothing = {
-      val lengthRead = try { in.read(buffer) } catch { case t => k.exception(t) }
+    def readNext(fc: FC[AsyncStream[Binary]]): Nothing = {
+      val lengthRead = try { in.read(buffer) } catch { case t => fc.thr(t) }
       if (lengthRead == -1) {
-        k(AsyncStream.empty)
+        fc.ret(AsyncStream.empty)
       } else {
         val binary = Binary.fromArray(buffer, 0, lengthRead)
-        k(AsyncStream.cons(binary, readNext _))
+        fc.ret(AsyncStream.cons(binary, readNext _))
       }
     }
-    readNext(k)
+    readNext(fc)
   }
 
 }

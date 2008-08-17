@@ -12,11 +12,11 @@ trait RichWritableByteChannel {
   val channel: SelectableChannel with GatheringByteChannel
   val richSelector: RichSelector
 
-  def asyncWrite(binary: Binary)(k: Cont[Unit]): Nothing = {
-    import k.exceptionHandler
+  def asyncWrite(binary: Binary)(fc: FC[Unit]): Nothing = {
+    import fc.implicitThr
     def tryWrite(buffers: Array[ByteBuffer], offset: Int): Nothing = try {
       if (offset >= buffers.length) {
-        k(())
+        fc.ret(())
       } else if (!buffers(offset).hasRemaining) {
         // Clean out empty or already-processed buffers.
         buffers(offset) = null // Allow garbage collection.
@@ -36,7 +36,7 @@ trait RichWritableByteChannel {
         }
       }
     } catch {
-      case e: Exception => k.exception(e)
+      case e: Exception => fc.thr(e)
     }
     tryWrite(binary.byteBuffers.toList.toArray, 0)
   }

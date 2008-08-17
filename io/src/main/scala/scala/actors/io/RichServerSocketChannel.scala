@@ -11,8 +11,8 @@ import scala.collection.jcl.Conversions._
 
 class RichServerSocketChannel(val channel: ServerSocketChannel, val richSelector: RichSelector) {
 
-  def asyncAccept(k: Cont[SocketChannel]): Nothing = {
-    import k.exceptionHandler
+  def asyncAccept(fc: FC[SocketChannel]): Nothing = {
+    import fc.implicitThr
     def asyncAccept0: Nothing = {
       channel.accept match {
         case null => {
@@ -20,7 +20,7 @@ class RichServerSocketChannel(val channel: ServerSocketChannel, val richSelector
           richSelector.register(channel, RichSelector.Accept) { () => asyncAccept0 }
           Actor.exit
         }
-        case socketChannel => k(socketChannel)
+        case socketChannel => fc.ret(socketChannel)
       }
     }
     asyncAccept0

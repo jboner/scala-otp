@@ -13,12 +13,12 @@ class RichSocketChannel(val channel: SocketChannel, val richSelector: RichSelect
 
   protected[this] val bufferLength: Int = 256
 
-  def asyncConnect(remote: SocketAddress)(k: Cont[Unit]): Nothing = {
-    import k.exceptionHandler
+  def asyncConnect(remote: SocketAddress)(fc: FC[Unit]): Nothing = {
+    import fc.implicitThr
     channel.connect(remote)
     def asyncConnect0: Nothing = {
       channel.finishConnect match {
-        case true => k(())
+        case true => fc.ret(())
         case false => {
           // Connect failed, use selector to callback when ready.
           richSelector.register(channel, RichSelector.Connect) { () => asyncConnect0 }

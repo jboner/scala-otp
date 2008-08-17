@@ -83,7 +83,6 @@ private[binary] final case class CompositeBinary private[binary] (private[binary
         }
 
         protected def copyToArray0(from2: Int, until2: Int, dest: Array[Byte], destFrom: Int): Unit = {
-          println("SlicedBinary"+(from, until)+".copyToArray0"+(from2: Int, until2: Int, dest: Array[Byte], destFrom: Int))
           CompositeBinary.this.copyToArray0(from + from2, from + until2, dest, destFrom)
         }
 

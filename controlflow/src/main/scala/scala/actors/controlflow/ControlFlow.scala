@@ -10,176 +10,251 @@ object ControlFlow {
   // Continuations
 
   /**
-   * Create a continuation which, when applied, will run the given
-   * function in a reaction of the then-current actor.
+   * Creates a continuation which, when applied, will run the given
+   * function in a reaction of the then-current actor. If the function
+   * throws an exception, then this will be passed to <code>thr</code>.
+   *
+   * <pre>
+   * implicit val implicitThr = thrower
+   * val c: Cont[Unit] = () => println("Called")
+   * </pre>
    */
-  implicit def reactionCont(f: () => Unit)(implicit eh: ExceptionHandler): Cont[Unit] = new Cont[Unit] {
-    def apply(value: Unit): Nothing = {
-      val channel = new Channel[Unit](Actor.self)
-      channel ! ()
-      channel.react {
-        case _: Any => handleCaught(f())(exceptionHandler)
+  implicit def cont(f: () => Unit)(implicit thr: Cont[Throwable]): Cont[Unit] = {
+    assert(thr != null)
+    new Cont[Unit] {
+      def apply(value: Unit) = {
+        inReaction {
+          try {
+            f()
+            Actor.exit
+          } catch {
+            case t if !isControlFlowThrowable(t) => thr(t)
+          }
+        }
       }
     }
-    val exceptionHandler = eh
   }
 
   /**
-   * Create a continuation which, when applied, will run the given
-   * function in a reaction of the then-current actor.
+   * Creates a continuation which, when applied, will run the given
+   * function in a reaction of the then-current actor. If the function
+   * throws an exception, then this will be passed to <code>thr</code>.
+   *
+   * <pre>
+   * implicit val implicitThr = thrower
+   * val c: Cont[R] = (value: R) => println("Called: " + value)
+   * </pre>
    */
-  implicit def reactionCont[R](f: R => Unit)(implicit eh: ExceptionHandler): Cont[R] = new Cont[R] {
-    def apply(value: R): Nothing = {
-      val channel = new Channel[Unit](Actor.self)
-      channel ! ()
-      channel.react {
-        case _: Any => handleCaught(f(value))(exceptionHandler)
+  implicit def cont[R](f: R => Unit)(implicit thr: Cont[Throwable]): Cont[R] = {
+    new Cont[R] {
+      def apply(value: R): Nothing = {
+        inReaction {
+          try {
+            f(value)
+            Actor.exit
+          } catch {
+            case t if !isControlFlowThrowable(t) => thr(t)
+          }
+        }
       }
     }
-    val exceptionHandler = eh
   }
 
   /**
-   * Create a continuation which, when applied, will exit the
-   * then-current actor and run the given function in a new actor.
+   * Avoid overflowing the stack by running the given code in a reaction.
+   * There may be a more efficient way to do this.
    */
-  def actorCont[R](f: R => Unit)(implicit eh: ExceptionHandler) = new Cont[R] {
-    def apply(value: R): Nothing = {
-      Actor.actor { handleCaught(f(value))(exceptionHandler) }
-      Actor.exit
+  private def inReaction(body: => Unit): Nothing = {
+    val channel = new Channel[Unit](Actor.self)
+    channel ! ()
+    channel.react {
+      case _: Any => body
     }
-    val exceptionHandler = eh
+  }
+  
+  // Throwable continuations
+
+  /**
+   * Creates a simple Cont[Throwable] that rethrows the given exception when
+   * applied.
+   *
+   * <pre>
+   * implicit val implicitThr = thrower
+   * val c: Cont[R] = (value: R) => println("Called: " + value)
+   * </pre>
+   */
+  def thrower = new Cont[Throwable] {
+    def apply(t: Throwable) = throw t
+  }
+
+  // FCs
+
+  /**
+   * Creates an FC with a return continuation, which, when applied, will run the
+   * given function in a reaction of the then-current actor. If the function
+   * throws an exception, then this will be passed to <code>thr</code>.
+   *
+   * <pre>
+   * implicit val implicitThr = thrower
+   * val fc: FC[Unit] = () => println("Called")
+   * </pre>
+   */
+  implicit def reactionFC(f: () => Unit)(implicit thr: Cont[Throwable]): FC[Unit] = {
+    val ret: Cont[Unit] = cont(f)(thr)
+    FC(ret, thr)
   }
 
   /**
-   * Create a continuation which, when applied, will run the given
-   * function then exit the then-current actor. Calling the
-   * continuation is relatively lightweight, but can cause the stack
-   * to overflow.
+   * Creates an FC with a return continuation, which, when applied, will run the
+   * given function in a reaction of the then-current actor. If the function
+   * throws an exception, then this will be passed to <code>thr</code>.
+   *
+   * <pre>
+   * implicit val implicitThr = thrower
+   * val fc: FC[R] = (value: R) => println("Called: " + value)
+   * </pre>
    */
-  def nestedCont[R](f: R => Unit)(implicit eh: ExceptionHandler) = new Cont[R] {
-    def apply(value: R): Nothing = {
-      handleCaught(f(value))(exceptionHandler)
-      Actor.exit
-    }
-    val exceptionHandler = eh
+  implicit def reactionFC[R](f: R => Unit)(implicit thr: Cont[Throwable]): FC[R] = {
+    val ret: Cont[R] = cont(f)(thr)
+    FC(ret, thr)
+  }
+  
+  /**
+   * Creates an FC with continuations that supply a <code>FunctionResult</code>
+   * to the given function.
+   *
+   * <pre>
+   * val fc: FC[R] = (result: FunctionResult[R]) => channel ! result
+   * </pre>
+   */
+  implicit def resultFC[R](f: FunctionResult[R] => Unit): FC[R] = {
+    // Introduce 'thrower' to avoid recursive use of 'thr'.
+    val thr: Cont[Throwable] = cont((t: Throwable) => f(Throw(t)))(thrower)
+    val ret: Cont[R] = cont((r: R) => f(Return(r)))(thr)
+    FC(ret, thr)
   }
 
   // AsyncFunctions
 
-  private[this] def handleCaught[R](body: => R)(implicit eh: ExceptionHandler): R = {
-    try {
-      body
-    } catch {
-      // XXX: Only allow scala.actors Throwables to pass through.
-      case e: Exception => eh.handle(e)
-      case e: Error => eh.handle(e)
-    }
-  }
-
   /**
-   * Creates a Responder which evaluates the given AsyncFunction.
+   * Creates an <code>AsyncFunction0</code> directly from a function with an
+   * equivalent signature.
+   *
+   * <pre>
+   * val af: AsyncFunction0[R] => (fc: FC[R]) => fc.ret(...)
+   * </pre>
    */
-/*  def respondOn[R](f: AsyncFunction0[R])(implicit eh: ExceptionHandler) = new Responder[R] {
-    def respond(k: R => Unit): Nothing = {
-      val cont = reactionCont(k)
-      handleCaught(f(k))
-    }
-  }*/
-
-  /**
-   * Creates an AsyncFunction which evaluates the given Responder.
-   */
-/*  def respondOn[R](responder: Responder[R])(implicit eh: ExceptionHandler) = new AsyncFunction0[R] {
-    def apply(k: Cont[R]) = {
-      import k.exceptionHandler
-      handleCaught(responder.respond { value: R => k(value) })
-    }
-  }*/
-
-  implicit def directAsyncFunction[R](f: Function1[Cont[R], Nothing]):AsyncFunction0[R] = new AsyncFunction0[R] {
-    def apply(k: Cont[R]) = {
-      import k.exceptionHandler
-      handleCaught(f(k))
-    }
-  }
-
-  implicit def directAsyncFunction[T1, R](f: Function2[T1, Cont[R], Nothing]): AsyncFunction1[T1, R] = new AsyncFunction1[T1, R] {
-    def apply(v1: T1)(k: Cont[R]) = {
-      import k.exceptionHandler
-      handleCaught(f(v1, k))
-    }
-  }
-
-  /**
-   * Converts the given Function0 into an AsyncFunction0 that, when
-   * applied, passes the Function0's result to a
-   * continuation. Exceptions thrown by the Function0 are passed to
-   * the continuation's exception method.
-   */
-  def asAsync[R](f: Function0[R]) = new AsyncFunction0[R] {
-    def apply(k: Cont[R]) = {
-      import k.exceptionHandler
-      k(handleCaught(f()))
-    }
-  }
-
-  /**
-   * Converts the given Function1 into an AsyncFunction1 that, when
-   * applied, passes the Function1's result to a
-   * continuation. Exceptions thrown by the Function1 are passed to
-   * the continuation's exception method.
-   */
-  def asAsync[T1, R](f: Function1[T1, R]) = new AsyncFunction1[T1, R] {
-    def apply(v1: T1)(k: Cont[R]) = {
-      import k.exceptionHandler
-      k(handleCaught(f(v1)))
-    }
-  }
-
-  abstract sealed class AsyncResult[-R]
-  case class NormalResult[R](value: R) extends AsyncResult[R]
-  case class ExceptionResult(cause: Throwable) extends AsyncResult[Any]
-
-  // a continuation which calls a function with the AsyncResult,
-  // making it easier to handle normal and exceptional results in
-  // a consistent way
-  implicit def resultCont[R](f: Function1[AsyncResult[R], Nothing]): Cont[R] = new Cont[R] {
-    def apply(value: R): Nothing = {
-      f(NormalResult(value))
-    }
-    val exceptionHandler = new ExceptionHandler {
-      def handle(t: Throwable): Nothing = {
-	f(ExceptionResult(t))
+  implicit def asyncFunction0[R](f: Function1[FC[R], Nothing]): AsyncFunction0[R] = new AsyncFunction0[R] {
+    def apply(fc: FC[R]) = {
+      assert(fc != null)
+      inReaction {
+        try {
+          f(fc)
+        } catch {
+          case t if !isControlFlowThrowable(t) => fc.thr(t)
+        }
       }
     }
   }
 
-  class TimeoutException extends Exception
-
-  def callWithCC[A](f: AsyncFunction0[A]): A = {
-    def receive(channel: Channel[Any]) = {
-      channel.receive { case any => any }
+  /**
+   * Creates an <code>AsyncFunction1</code> directly from a function with an
+   * equivalent signature.
+   *
+   * <pre>
+   * val af: AsyncFunction1[T1, R] => (v1: T1, fc: FC[R]) => fc.ret(...)
+   * </pre>
+   */
+  implicit def asyncFunction1[T1, R](f: Function2[T1, FC[R], Nothing]): AsyncFunction1[T1, R] = new AsyncFunction1[T1, R] {
+    def apply(v1: T1)(fc: FC[R]) = {
+      assert(fc != null)
+      inReaction {
+        try {
+          f(v1, fc)
+        } catch {
+          case t if !isControlFlowThrowable(t) => fc.thr(t)
+        }
+      }
     }
-    callWithCC(f, receive)
   }
 
-  def callWithCCWithin[A](msec: Long)(f: AsyncFunction0[A]): A = {
-    def receive(channel: Channel[Any]) = {
-      channel.receiveWithin(msec) { case any => any }
-    }
-    callWithCC(f, receive)
-  }
+  // Functions
 
-  private def callWithCC[A](f: AsyncFunction0[A], receive: Function1[Channel[Any], Any]) = {
-    val channel = new Channel[Any](Actor.self)
-    val k = resultCont { result: AsyncResult[A] => channel ! result ; Actor.exit }
-    Actor.actor { f(k) }
-    val msg = receive(channel)
-    msg match {
-      case NormalResult(value) => value.asInstanceOf[A]
-      case ExceptionResult(t) => throw t
-      case TIMEOUT => throw new TimeoutException
+  /**
+   * Creates an <code>AsyncFunction0</code> that returns a constant result.
+   *
+   * <pre>
+   * val f: AsyncFunction0[Int] = asyncConstant(42)
+   * </pre>
+   */
+  def asyncConstant[R](value: R): AsyncFunction0[R] = new AsyncFunction0[R] {
+    def apply(fc: FC[R]) = fc.ret(value)
+  }
+  
+  /**
+   * Converts a <code>Function0</code> into a <code>RichFunction0</code>.
+   */
+  implicit def richFunction0[R](f: Function0[R]) = new RichFunction0[R] {
+    self =>
+
+    def apply = f()
+
+    def toAsyncFunction = new AsyncFunction0[R] {
+      def apply(fc: FC[R]) = {
+        assert(fc != null)
+        try {
+          val returnValue = f()
+          fc.ret(returnValue)
+        } catch {
+          case t if !isControlFlowThrowable(t) => fc.thr(t)
+        }
+      }
+
+      override def toFunction: RichFunction0[R] = self
+
+    }
+    
+  }
+  
+  /**
+   * Converts a <code>Function1</code> into a <code>RichFunction1</code>.
+   */
+  implicit def richFunction1[T1, R](f: Function1[T1, R]) = new RichFunction1[T1, R] {
+    self =>
+
+    def apply(v1: T1) = f(v1)
+
+    def toAsyncFunction = new AsyncFunction1[T1, R] {
+      def apply(v1: T1)(fc: FC[R]) = {
+        assert(fc != null)
+        try {
+          val returnValue = f(v1)
+          fc.ret(returnValue)
+        } catch {
+          case t if !isControlFlowThrowable(t) => fc.thr(t)
+        }
+      }
+
+      override def toFunction: RichFunction1[T1, R] = self
+    }
+
+  }
+  
+  // Misc
+
+  /**
+   * Determine whether or not a given throwable is used by
+   * <code>scala.actors</code> to manage for control flow.
+   *
+   * <p>Currently this is done by treating any non-Exception, non-Error
+   * throwable as a control flow throwable. Ideally we need a common superclass
+   * for control flow throwables, to make matching correct.
+   */
+  def isControlFlowThrowable(t: Throwable): Boolean = {
+    t match {
+      case e: Exception => false
+      case e: Error => false
+      case _ => true
     }
   }
 
