@@ -17,6 +17,11 @@ import scala.actors.controlflow.ControlFlow._
 trait RichFunction0[+R] extends Function0[R] {
 
   /**
+   * Applies this function, capturing the result as a <code>FunctionResult</code>.
+   */
+  def resultApply: FunctionResult[R]
+
+  /**
    * Creates an asynchronous version of this function.
    */
   def toAsyncFunction: AsyncFunction0[R]

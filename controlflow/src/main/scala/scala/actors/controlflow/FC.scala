@@ -1,5 +1,7 @@
 package scala.actors.controlflow
 
+import scala.actors.controlflow.ControlFlow._
+
 /**
  * "Function Continuations": contains the pair of continuations passed to
  * an AsyncFunction. The name is abbreviated to "FC" because it is used so
@@ -26,5 +28,18 @@ case class FC[-R] (ret: Cont[R], thr: Cont[Throwable]) {
    * </pre>
    */
   implicit def implicitThr: Cont[Throwable] = thr
-  
+
+  /**
+   *
+   */
+  def withFinally(body: AsyncFunction0[Unit]): FC[R] = {
+    // Run body before returning.
+    val finallyRet: Cont[R] = { (value: R) =>
+      body { () => ret(value) }
+    }
+    val finallyThr: Cont[Throwable] = { (t: Throwable) =>
+      body { () => thr(t) }
+    }
+    FC(finallyRet, finallyThr)
+  }
 }

@@ -130,7 +130,9 @@ object ControlFlow {
   implicit def resultFC[R](f: FunctionResult[R] => Unit): FC[R] = {
     // Introduce 'thrower' to avoid recursive use of 'thr'.
     val thr: Cont[Throwable] = cont((t: Throwable) => f(Throw(t)))(thrower)
-    val ret: Cont[R] = cont((r: R) => f(Return(r)))(thr)
+    implicit val implicitThr = thr
+    val retF = (r: R) => f(Return(r))
+    val ret: Cont[R] = cont(retF)(thr)
     FC(ret, thr)
   }
 
@@ -181,17 +183,6 @@ object ControlFlow {
   // Functions
 
   /**
-   * Creates an <code>AsyncFunction0</code> that returns a constant result.
-   *
-   * <pre>
-   * val f: AsyncFunction0[Int] = asyncConstant(42)
-   * </pre>
-   */
-  def asyncConstant[R](value: R): AsyncFunction0[R] = new AsyncFunction0[R] {
-    def apply(fc: FC[R]) = fc.ret(value)
-  }
-  
-  /**
    * Converts a <code>Function0</code> into a <code>RichFunction0</code>.
    */
   implicit def richFunction0[R](f: Function0[R]) = new RichFunction0[R] {
@@ -199,15 +190,19 @@ object ControlFlow {
 
     def apply = f()
 
+    def resultApply: FunctionResult[R] = {
+      try {
+        val returnValue = f()
+        Return(returnValue)
+      } catch {
+        case t if !isControlFlowThrowable(t) => Throw(t)
+      }
+    }
+
     def toAsyncFunction = new AsyncFunction0[R] {
       def apply(fc: FC[R]) = {
         assert(fc != null)
-        try {
-          val returnValue = f()
-          fc.ret(returnValue)
-        } catch {
-          case t if !isControlFlowThrowable(t) => fc.thr(t)
-        }
+        resultApply.toAsyncFunction(fc)
       }
 
       override def toFunction: RichFunction0[R] = self
@@ -224,15 +219,19 @@ object ControlFlow {
 
     def apply(v1: T1) = f(v1)
 
+    def resultApply(v1: T1): FunctionResult[R] = {
+      try {
+        val returnValue = f(v1)
+        Return(returnValue)
+      } catch {
+        case t if !isControlFlowThrowable(t) => Throw(t)
+      }
+    }
+
     def toAsyncFunction = new AsyncFunction1[T1, R] {
       def apply(v1: T1)(fc: FC[R]) = {
         assert(fc != null)
-        try {
-          val returnValue = f(v1)
-          fc.ret(returnValue)
-        } catch {
-          case t if !isControlFlowThrowable(t) => fc.thr(t)
-        }
+        resultApply(v1).toAsyncFunction(fc)
       }
 
       override def toFunction: RichFunction1[T1, R] = self

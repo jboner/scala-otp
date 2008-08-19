@@ -43,13 +43,13 @@ trait AsyncFunction0[+R] extends AnyRef {
   }
 
   /**
-   * Handle the message returned by <code>applyInActor</code>.
+   * Converts the message returned by <code>applyInActor</code> into a
+   * <code>FunctionResult</code>.
    */
-  private def handleResultMessage(msg: Any): R = msg match {
-    case Return(value) => value.asInstanceOf[R]
-    case Throw(t) => throw t
-    case TIMEOUT => throw new TimeoutException()
-    case unknown => throw new MatchError(unknown)
+  private def messageResult(msg: Any): FunctionResult[R] = msg match {
+    case result: FunctionResult[R] => result
+    case TIMEOUT => Throw(new TimeoutException)
+    case unknown => Throw(new MatchError(unknown))
   }
 
   /**
@@ -63,14 +63,7 @@ trait AsyncFunction0[+R] extends AnyRef {
       assert(fc != null)
       val channel = AsyncFunction0.this.applyInActor
       channel.reactWithin(msec) {
-        case msg: Any => {
-          try {
-            val returnValue = handleResultMessage(msg)
-            fc.ret(returnValue)
-          } catch {
-            case t if !isControlFlowThrowable(t) => fc.thr(t)
-          }
-        }
+        case msg: Any => messageResult(msg).toAsyncFunction.apply(fc)
       }
     }
   }
@@ -81,10 +74,12 @@ trait AsyncFunction0[+R] extends AnyRef {
    * new actor.
    */
   def toFunction: RichFunction0[R] = new RichFunction0[R] {
-    def apply: R = {
+    def apply: R = resultApply.toFunction.apply
+    
+    def resultApply: FunctionResult[R] = {
       val channel = AsyncFunction0.this.applyInActor
       channel.receive {
-        case msg: Any => handleResultMessage(msg)
+        case msg: Any => messageResult(msg)
       }
     }
 

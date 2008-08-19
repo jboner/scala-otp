@@ -16,4 +16,14 @@
       <class name="scala.actors.controlflow.ControlFlowSuite" />
     </classes>
   </test>
+  <test name="AsyncLock">
+    <classes>
+      <class name="scala.actors.controlflow.concurrent.AsyncLockSuite" />
+    </classes>
+  </test>
+  <test name="AsyncFuture">
+    <classes>
+      <class name="scala.actors.controlflow.concurrent.AsyncPromiseSuite" />
+    </classes>
+  </test>
 </suite>

@@ -16,8 +16,14 @@ object RichSelector {
   private[RichSelector] val OPS = List(Accept, Connect, Read, Write)
 }
 
-// XXX: Implement stop/cancel?
+/**
+ * Wraps a <code>Selector</code>, adding support for callbacks when operations
+ * are ready.
+ *
+ * @param selector The <code>Selector</code> to wrap.
+ */
 class RichSelector(val selector: Selector) {
+// XXX: Implement stop/cancel?
   import RichSelector._
   //println("RichSelector: Creating.")
 

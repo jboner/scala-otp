@@ -50,6 +50,17 @@ object AsyncStream {
   def fromList[A](list: List[A]): AsyncStream[A] =
     if (list.isEmpty) AsyncStream.empty
     else cons(list.head, (() => AsyncStream.fromList(list.tail)).toAsyncFunction)
+
+  def fromAsyncIterator[A](itr: AsyncIterator[A])(fc: FC[AsyncStream[A]]): Nothing = {
+    import fc.implicitThr
+    itr.hasNext { (hasNext: Boolean) =>
+      if (hasNext) {
+        itr.next { (next: A) =>
+          fc.ret(AsyncStream.cons(next, fromAsyncIterator(itr) _))
+        }
+      } else fc.ret(AsyncStream.empty)
+    }
+  }
 }
 
 /**
@@ -59,6 +70,22 @@ object AsyncStream {
  * <code>callWithCC</code> internally.
  */
 trait AsyncStream[+A] extends Stream[A] {
+  
+  def asyncElements: AsyncIterator[A] = new AsyncIterator[A] {
+    var current = AsyncStream.this
+    def hasNext(fc: FC[Boolean]) = {
+      val result = !current.isEmpty
+      fc.ret(result)
+    }
+    def next(fc: FC[A]) = {
+      import fc.implicitThr
+      current.asyncTail { (tl: AsyncStream[A]) =>
+        val result = current.head
+        current = tl
+        fc.ret(result)
+      }
+    }
+  }
 
   def tail = { fc: FC[AsyncStream[A]] => asyncTail(fc) }.toFunction.apply
 
@@ -90,13 +117,25 @@ trait AsyncStream[+A] extends Stream[A] {
    * continuation.
    */
   def asyncMap[B](f: AsyncFunction1[A, B])(fc: FC[AsyncStream[B]]): Nothing = {
+    AsyncStream.fromAsyncIterator(asyncElements.asyncMap(f))(fc)
+  }
+
+  def asyncFlatMap[B](f: AsyncFunction1[A, AsyncStream[B]])(fc: FC[AsyncStream[B]]): Nothing = {
     import fc.implicitThr
-    if (isEmpty) fc.ret(AsyncStream.empty)
-    else f(head) { mappedHead: B =>
-      fc.ret(AsyncStream.cons(mappedHead, { fc2: FC[AsyncStream[B]] =>
-        asyncTail {tl: AsyncStream[A] => tl.asyncMap(f)(fc2) }
-      }))
+    val itrF: AsyncFunction1[A, AsyncIterator[B]] = { (a: A, fc: FC[AsyncIterator[B]]) =>
+      f(a) { (bStream: AsyncStream[B]) =>
+        fc.ret(bStream.asyncElements)
+      }
     }
+    AsyncStream.fromAsyncIterator(asyncElements.asyncFlatMap(itrF))(fc)
+  }
+  
+  def asyncFilter(p: AsyncFunction1[A, Boolean])(fc: FC[AsyncStream[A]]): Nothing = {
+    AsyncStream.fromAsyncIterator(asyncElements.asyncFilter(p))(fc)
+  }
+  
+  def asyncForeach(f: AsyncFunction1[A, Unit])(fc: FC[Unit]): Nothing = {
+    asyncElements.asyncForeach(f)(fc)
   }
 
   /**

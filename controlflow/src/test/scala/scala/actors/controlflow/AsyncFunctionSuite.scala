@@ -23,7 +23,7 @@ class AsyncFunctionSuite extends TestNGSuite with Checkers {
 
   val addOne: AsyncFunction1[Int, Int] = { (x: Int, fc: FC[Int]) => fc.ret(x + 1) }
   val double: AsyncFunction1[Int, Int] = { x: Int => x * 2 }.toAsyncFunction
-  val two: AsyncFunction0[Int] = asyncConstant(2)
+  val two: AsyncFunction0[Int] = Return(2).toAsyncFunction
 
   @Test
   def testAsyncFunction1 = asyncTest(10000) {

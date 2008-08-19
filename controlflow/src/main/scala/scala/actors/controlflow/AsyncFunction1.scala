@@ -19,6 +19,18 @@ trait AsyncFunction1[-T1, +R] extends AnyRef {
    * Create a function which executes the given function then passes its result
    * to this function.
    */
+  def compose[A](g: AsyncFunction0[T1]) = new AsyncFunction0[R] {
+    def apply(fc: FC[R]) = {
+      assert(fc != null)
+      import fc.implicitThr
+      g { result: T1 => AsyncFunction1.this.apply(result)(fc) }
+    }
+  }
+
+  /**
+   * Create a function which executes the given function then passes its result
+   * to this function.
+   */
   def compose[A](g: AsyncFunction1[A, T1]) = new AsyncFunction1[A, R] {
     def apply(x: A)(fc: FC[R]) = {
       assert(fc != null)
@@ -54,13 +66,13 @@ trait AsyncFunction1[-T1, +R] extends AnyRef {
   }
   
   /**
-   * Handle the message returned by <code>applyInActor</code>.
+   * Converts the message returned by <code>applyInActor</code> into a
+   * <code>FunctionResult</code>.
    */
-  private def handleResultMessage(msg: Any): R = msg match {
-    case Return(value) => value.asInstanceOf[R]
-    case Throw(t) => throw t
-    case TIMEOUT => throw new TimeoutException()
-    case unknown => throw new MatchError(unknown)
+  private def messageResult(msg: Any): FunctionResult[R] = msg match {
+    case result: FunctionResult[R] => result
+    case TIMEOUT => Throw(new TimeoutException())
+    case unknown => Throw(new MatchError(unknown))
   }
   
   /**
@@ -74,14 +86,7 @@ trait AsyncFunction1[-T1, +R] extends AnyRef {
       assert(fc != null)
       val channel = applyInActor(v1)
       channel.reactWithin(msec) {
-        case msg: Any => {
-          try {
-            val returnValue = handleResultMessage(msg)
-            fc.ret(returnValue)
-          } catch {
-            case t if !isControlFlowThrowable(t) => fc.thr(t)
-          }
-        }
+        case msg: Any => messageResult(msg).toAsyncFunction.apply(fc)
       }
     }
   }
@@ -92,10 +97,12 @@ trait AsyncFunction1[-T1, +R] extends AnyRef {
    * new actor.
    */
   def toFunction: RichFunction1[T1, R] = new RichFunction1[T1, R] {
-    def apply(v1: T1): R = {
-      val channel = applyInActor(v1)
+    def apply(v1: T1): R = resultApply(v1).toFunction.apply
+    
+    def resultApply(v1: T1): FunctionResult[R] = {
+      val channel = AsyncFunction1.this.applyInActor(v1)
       channel.receive {
-        case msg: Any => handleResultMessage(msg)
+        case msg: Any => messageResult(msg)
       }
     }
 
