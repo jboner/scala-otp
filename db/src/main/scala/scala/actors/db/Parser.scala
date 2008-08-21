@@ -2,7 +2,7 @@
  * Copyright (C) 2007-2008 Scala OTP Team
  */
 
-package scala.actors.mnesia
+package scala.actors.db
 
 import scala.actors.behavior.Logging
 

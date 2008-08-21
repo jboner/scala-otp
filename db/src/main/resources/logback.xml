@@ -7,7 +7,7 @@
     </layout>
   </appender>
 
-  <logger name="scala.actors.mnesia">
+  <logger name="scala.actors.db">
     <level value="DEBUG"/>
   </logger>
 

@@ -1,10 +1,10 @@
-  /**
+/**
  * Copyright (C) 2007-2008 Scala OTP Team
  */
 
-package scala.actors.mnesia
+package scala.actors.db
 
-import scala.actors.mnesia.Index._
+import scala.actors.db.Index._
 
 import org.testng.annotations.{BeforeSuite, BeforeMethod, Test}
 import org.testng.Assert._
@@ -16,7 +16,10 @@ import org.scalatest._
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class InMemoryCustomPKSuite extends TestNGSuite {
-  case class Person(name: String)
+  case class Person(name: String) {
+    var id: PK = _
+    override def toString = "Person: " + name + " " + id + " " + System.identityHashCode(this)
+  }
   val person = classOf[Person]
 
   DB.
@@ -71,37 +74,67 @@ class InMemoryCustomPKSuite extends TestNGSuite {
 
   @Test { val groups=Array("unit") }
   def testRemoveByPK = {
+    DB.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
     val pkJonas = DB.store(Person("Jonas"))
     val pkSara = DB.store(Person("Sara"))
     val pkKalle = DB.store(Person("Kalle"))
 
-    // remove by PK
-    DB.remove(pkJonas, person)
-    val persons1: List[Person] = DB findAll person
+    DB.removeByPK(pkJonas, person)
+    val persons1: List[Person] = DB.findAll(person)
     assert(persons1.size === 2)
+    intercept(classOf[IllegalStateException]) { 
+      DB.findByIndex("Jonas", "name", person)
+    }
+    DB.removeByPK(pkKalle, person)
 
-    DB.remove(pkKalle, person)
-    val persons2: List[Person] = DB findAll person
+    val persons2: List[Person] = DB.findAll(person)
     assert(persons2.size === 1)
     assert(persons2(0).name === "Sara")
+    intercept(classOf[IllegalStateException]) { 
+      DB.findByIndex("Kalle", "name", person)
+    }
+    assert(true === true)
+  }
 
+ @Test { val groups=Array("unit") }
+  def testRemoveByIndex = {
+    DB.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
+    val kalle = Person("Kalle")
+    val kalleKey = DB.store(kalle)
+    DB.store(Person("Jonas"))
+    DB.store(Person("Sara"))
+
+    DB.removeByIndex("Kalle", "name", person)
+
+    val persons: List[Person] = DB.findAll(person)
+    assert(persons.size === 2)
+    assert(persons.exists(_.name == "Jonas"))
+    assert(persons.exists(_.name == "Sara"))
+
+    assert(!persons.exists(_.name == "Kalle"))
+    assert(DB.findByPK(kalleKey, person) === None)
     assert(true === true)
   }
 
   @Test { val groups=Array("unit") }
   def testRemoveByRef = {
+    DB.addIndex("name", person, (v: Any) => StringIndex(v.asInstanceOf[String]))
+    val karl = Person("Kalle")
     val jonas = DB.store(Person("Jonas"))
     val sara = DB.store(Person("Sara"))
-    val kalle = DB.store(Person("Kalle"))
+    val kalle = DB.store(karl)
 
-    // remove by instance
-    DB.remove(Person("Kalle"))
+    DB.remove(karl)
+
     val persons: List[Person] = DB findAll person
     assert(persons.size === 2)
     assert(persons.exists(_.name == "Jonas"))
     assert(persons.exists(_.name == "Sara"))
 
     assert(!persons.exists(_.name == "Kalle"))
+    intercept(classOf[IllegalStateException]) { 
+      DB.findByIndex("Kalle", "name", person)
+    }
 
     assert(true === true)
   }

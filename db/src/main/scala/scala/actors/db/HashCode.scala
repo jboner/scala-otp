@@ -1,4 +1,8 @@
-package scala.actors.mnesia
+/**
+ * Copyright (C) 2007-2008 Scala OTP Team
+ */
+
+package scala.actors.db
 
 import java.lang.reflect.{Array => JArray}
 import java.lang.{Float => JFloat, Double => JDouble}

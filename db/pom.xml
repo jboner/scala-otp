@@ -1,25 +1,28 @@
-
-
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>scala.actors.behavior</groupId>
-  <artifactId>scala-behavior</artifactId>
+  <groupId>org.scala-lang</groupId>
+  <artifactId>scala-db</artifactId>
 
-  <name>Scala Actors Behavior Module</name>
-  <description>Implements Erlang-style Behaviors for Scala; Supervisor, GenericServer, GenericEvent and GenericFiniteStateMachine allowing creating fault-tolerant actor-based enterprise systems.</description> 
+  <name>Scala Actors DB Module</name>
+  <description>In-memory replicating database for Scala (similar to Erlang's Mnesia).</description> 
 
-  <version>0.1-SNAPSHOT</version>
+  <version>0.1</version>
   <inceptionYear>2008</inceptionYear>
 
   <parent>
-    <groupId>scala.actors</groupId>
+    <groupId>org.scala-lang</groupId>
     <artifactId>scala-otp</artifactId>
     <version>0.1-SNAPSHOT</version>
   </parent>
 
   <dependencies>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-behavior</artifactId>
+      <version>0.1-SNAPSHOT</version>
+    </dependency>
     <dependency>
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-library</artifactId>

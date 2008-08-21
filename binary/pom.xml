@@ -2,7 +2,7 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>scala.binary</groupId>
+  <groupId>org.scala-lang</groupId>
   <artifactId>scala-binary</artifactId>
 
   <name>Scala Binary Module</name>
@@ -12,7 +12,7 @@
   <inceptionYear>2008</inceptionYear>
 
   <parent>
-    <groupId>scala.actors</groupId>
+    <groupId>org.scala-lang</groupId>
     <artifactId>scala-otp</artifactId>
     <version>0.1-SNAPSHOT</version>
   </parent>

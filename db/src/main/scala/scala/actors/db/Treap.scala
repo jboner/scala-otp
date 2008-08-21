@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package scala.actors.mnesia
+package scala.actors.db
 
 import scala.collection._
 
