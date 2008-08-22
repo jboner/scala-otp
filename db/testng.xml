@@ -1,0 +1,11 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="All Scala DB Tests" verbose="1">
+  <test name="DB">
+    <classes>
+      <class name="scala.actors.db.InMemoryGeneratedPKSuite" />
+      <class name="scala.actors.db.InMemoryCustomPKSuite" />
+      <class name="scala.actors.db.TreapSuite" />
+    </classes>
+  </test>
+</suite>

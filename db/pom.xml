@@ -3,12 +3,12 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.scala-lang</groupId>
-  <artifactId>scala-binary</artifactId>
+  <artifactId>scala-db</artifactId>
 
-  <name>Scala Binary Module</name>
-  <description>Implements an Erlang-style immutable Binary type. This type can be used as a safer alternative to byte arrays.</description> 
+  <name>Scala Actors DB Module</name>
+  <description>In-memory replicating database for Scala (similar to Erlang's Mnesia).</description> 
 
-  <version>0.1-SNAPSHOT</version>
+  <version>0.1</version>
   <inceptionYear>2008</inceptionYear>
 
   <parent>
@@ -20,7 +20,20 @@
   <dependencies>
     <dependency>
       <groupId>org.scala-lang</groupId>
+      <artifactId>scala-behavior</artifactId>
+      <version>0.1-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
       <artifactId>scala-library</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
     </dependency>
 
     <dependency>
@@ -33,11 +46,6 @@
       <artifactId>testng</artifactId>
       <scope>test</scope>
       <classifier>jdk15</classifier>
-    </dependency>
-    <dependency>
-      <groupId>org.scalacheck</groupId>
-      <artifactId>scalacheck</artifactId>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

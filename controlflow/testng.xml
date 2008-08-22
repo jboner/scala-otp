@@ -16,7 +16,7 @@
       <class name="scala.actors.controlflow.ControlFlowSuite" />
     </classes>
   </test>
-  <test name="AsyncLock">
+  <!-- test name="AsyncLock">
     <classes>
       <class name="scala.actors.controlflow.concurrent.AsyncLockSuite" />
     </classes>
@@ -25,5 +25,5 @@
     <classes>
       <class name="scala.actors.controlflow.concurrent.AsyncPromiseSuite" />
     </classes>
-  </test>
+  </test-->
 </suite>

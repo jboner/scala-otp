@@ -1,10 +1,13 @@
 target
+out
 *.ipr
 *.iws
+*.iml
 *.*~
-*#*#
+#*#
 *.cmd
 *.sh
 *.bat
 etags
 TAGS
+.DS_Store
