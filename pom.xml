@@ -119,7 +119,7 @@
       <plugin>
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
-        <executions>
+          <executions>
           <execution>
             <goals>
               <goal>compile</goal>
@@ -202,6 +202,10 @@
       <plugin>
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
+        <configuration>
+          <vscaladocVersion>1.1</vscaladocVersion>
+          <scalaVersion>${scala.version}</scalaVersion>
+        </configuration>
       </plugin>
     </plugins>
   </reporting>
