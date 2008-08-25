@@ -4,19 +4,15 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.scala-lang</groupId>
   <artifactId>scala-behavior</artifactId>
 
   <name>Scala Actors Behavior Module</name>
   <description>Implements Erlang-style Behaviors for Scala; Supervisor, GenericServer, GenericEvent and GenericFiniteStateMachine allowing creating fault-tolerant actor-based enterprise systems.</description> 
 
-  <version>0.1-SNAPSHOT</version>
-  <inceptionYear>2008</inceptionYear>
-
   <parent>
-    <groupId>org.scala-lang</groupId>
+    <groupId>org.scala-libs</groupId>
     <artifactId>scala-otp</artifactId>
-    <version>0.1-SNAPSHOT</version>
+    <version>${library.version}</version>
   </parent>
 
   <dependencies>
@@ -32,7 +28,7 @@
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
     </dependency>
-
+    
     <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest</artifactId>
