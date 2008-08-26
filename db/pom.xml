@@ -11,6 +11,7 @@
     <groupId>org.scala-libs</groupId>
     <artifactId>scala-otp</artifactId>
     <version>${library.version}</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <dependencies>
