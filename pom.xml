@@ -16,7 +16,7 @@
     <library.version>0.1-SNAPSHOT</library.version>
   </properties>
 
-  <version>${library.version}</version>
+  <version>0.1-SNAPSHOT</version>
   <inceptionYear>2008</inceptionYear>
   <packaging>pom</packaging>
 

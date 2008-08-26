@@ -10,7 +10,7 @@
   <parent>
     <groupId>org.scala-libs</groupId>
     <artifactId>scala-otp</artifactId>
-    <version>${library.version}</version>
+    <version>0.1-SNAPSHOT</version>
     <relativePath>../scala-otp/pom.xml</relativePath>
   </parent>
 
