@@ -2,19 +2,16 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>scala.actors.io</groupId>
   <artifactId>scala-io</artifactId>
 
   <name>Scala Actors IO Module</name>
   <description>Supports non-blocking IO using actors.</description> 
 
-  <version>0.1-SNAPSHOT</version>
-  <inceptionYear>2008</inceptionYear>
-
   <parent>
-    <groupId>scala.actors</groupId>
+    <groupId>org.scala-libs</groupId>
     <artifactId>scala-otp</artifactId>
     <version>0.1-SNAPSHOT</version>
+    <relativePath>../scala-otp/pom.xml</relativePath>
   </parent>
 
   <dependencies>
@@ -22,16 +19,15 @@
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-library</artifactId>
     </dependency>
-
     <dependency>
-      <groupId>scala.binary</groupId>
+      <groupId>org.scala-libs</groupId>
       <artifactId>scala-binary</artifactId>
     </dependency>
     <dependency>
-      <groupId>scala.actors.controlflow</groupId>
+      <groupId>org.scala-libs</groupId>
       <artifactId>scala-controlflow</artifactId>
     </dependency>
-
+    
     <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest</artifactId>

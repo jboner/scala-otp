@@ -2,26 +2,22 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.scala-lang</groupId>
   <artifactId>scala-db</artifactId>
 
   <name>Scala Actors DB Module</name>
   <description>In-memory replicating database for Scala (similar to Erlang's Mnesia).</description> 
 
-  <version>0.1</version>
-  <inceptionYear>2008</inceptionYear>
-
   <parent>
-    <groupId>org.scala-lang</groupId>
+    <groupId>org.scala-libs</groupId>
     <artifactId>scala-otp</artifactId>
     <version>0.1-SNAPSHOT</version>
+    <relativePath>../scala-otp/pom.xml</relativePath>
   </parent>
 
   <dependencies>
     <dependency>
-      <groupId>org.scala-lang</groupId>
+      <groupId>org.scala-libs</groupId>
       <artifactId>scala-behavior</artifactId>
-      <version>0.1-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.scala-lang</groupId>

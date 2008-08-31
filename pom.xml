@@ -1,27 +1,24 @@
-
 <project xmlns="http://maven.apache.org/POM/4.0.0" 
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.scala-lang</groupId>
-  <artifactId>scala-otp</artifactId>
   <name>Scala OTP</name>
-  <description>The Scala OTP project aims implementing an enterprise platform and runtime for Scala Actors similar to Erlangs OTP platform, for implemetation of highly fault-tolerant, distibuted actor-based enterprise systems.</description> 
+  <description>
+    The Scala OTP project aims implementing an enterprise platform and runtime for Scala Actors similar to Erlangs OTP platform, for implementation of highly fault-tolerant, distributed actor-based enterprise systems.
+  </description> 
+
+  <groupId>org.scala-libs</groupId>
+  <artifactId>scala-otp</artifactId>
+  
+  <properties>
+    <scala.version>2.7.1</scala.version>
+    <library.version>0.1-SNAPSHOT</library.version>
+  </properties>
 
   <version>0.1-SNAPSHOT</version>
   <inceptionYear>2008</inceptionYear>
   <packaging>pom</packaging>
-
-  <properties>
-    <scala.version>2.7.1</scala.version>
-  </properties>
-
-  <scm>
-    <connection></connection>
-    <developerConnection></developerConnection>
-    <url></url>
-  </scm>
 
   <modules>
     <module>binary</module>
@@ -56,24 +53,29 @@
       </dependency>
 
       <dependency>
-        <groupId>scala.actors.behaviors</groupId>
-        <artifactId>scala-behaviors</artifactId>
-        <version>0.1-SNAPSHOT</version>
-      </dependency>
-      <dependency>
-        <groupId>scala.binary</groupId>
+        <groupId>org.scala-libs</groupId>
         <artifactId>scala-binary</artifactId>
-        <version>0.1-SNAPSHOT</version>
+        <version>${library.version}</version>
       </dependency>
       <dependency>
-        <groupId>scala.actors.controlflow</groupId>
+        <groupId>org.scala-libs</groupId>
         <artifactId>scala-controlflow</artifactId>
-        <version>0.1-SNAPSHOT</version>
+        <version>${library.version}</version>
       </dependency>
       <dependency>
-        <groupId>scala.actors.io</groupId>
+        <groupId>org.scala-libs</groupId>
         <artifactId>scala-io</artifactId>
-        <version>0.1-SNAPSHOT</version>
+        <version>${library.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.scala-libs</groupId>
+        <artifactId>scala-behavior</artifactId>
+        <version>${library.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.scala-libs</groupId>
+        <artifactId>scala-db</artifactId>
+        <version>${library.version}</version>
       </dependency>
 
       <dependency>
@@ -91,6 +93,7 @@
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest</artifactId>
         <version>0.9.3</version>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.scalacheck</groupId>
@@ -102,12 +105,8 @@
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
         <version>5.7</version>
+        <scope>test</scope>
         <classifier>jdk15</classifier>
-      </dependency>
-      <dependency>
-        <groupId>org.scalacheck</groupId>
-        <artifactId>scalacheck</artifactId>
-       <version>1.3</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -119,7 +118,7 @@
       <plugin>
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
-        <executions>
+          <executions>
           <execution>
             <goals>
               <goal>compile</goal>
@@ -150,7 +149,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-eclipse-plugin</artifactId>
         <configuration>
-          <downloadSources>true</downloadSources>
+          <downloadSources>false</downloadSources>
           <buildcommands>
             <buildcommand>ch.epfl.lamp.sdt.core.scalabuilder</buildcommand>
           </buildcommands>
@@ -202,6 +201,10 @@
       <plugin>
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
+        <configuration>
+          <vscaladocVersion>1.1</vscaladocVersion>
+          <scalaVersion>${scala.version}</scalaVersion>
+        </configuration>
       </plugin>
     </plugins>
   </reporting>
