@@ -1,6 +1,7 @@
 package scala.actors.controlflow
 
 import scala.actors.controlflow.ControlFlow._
+import scala.actors.controlflow.concurrent._
 
 /**
  * The AsyncStream object provides functions for defining and working
@@ -14,8 +15,9 @@ object AsyncStream {
   val empty = new AsyncStream[Nothing] {
     override def isEmpty: Boolean = true
     override def head: Nothing = throw new NoSuchElementException("head of empty stream")
-    def asyncTail(fc: FC[AsyncStream[Nothing]]): Nothing = fc.thr(new UnsupportedOperationException("asyncTail of empty stream"))
-    protected def addDefinedElems(buf: StringBuilder, prefix: String): StringBuilder = buf
+    val asyncTail = new AsyncLazyFuture({ (fc: FC[AsyncStream[Nothing]]) =>
+      fc.thr(new UnsupportedOperationException("asyncTail of empty stream"))
+    })
   }
 
   /**
@@ -25,23 +27,7 @@ object AsyncStream {
   def cons[A](hd: A, getTail: AsyncFunction0[AsyncStream[A]]) = new AsyncStream[A] {
     override def isEmpty = false
     def head = hd
-    private var tlCache: AsyncStream[A] = _
-    def asyncTail(fc: FC[AsyncStream[A]]): Nothing = {
-      import fc.implicitThr
-      if (tlCache eq null) {
-        getTail { tl: AsyncStream[A] => tlCache = tl; fc.ret(tl) }
-      } else {
-        fc.ret(tlCache)
-      }
-    }
-    protected def addDefinedElems(buf: StringBuilder, prefix: String): StringBuilder = {
-      val buf1 = buf.append(prefix).append(hd)
-      if (tlCache eq null) {
-        buf1 append ", ?"
-      } else {
-        tlCache.addDefinedElems(buf1, ", ")
-      }
-    }
+    val asyncTail = new AsyncLazyFuture(getTail)
   }
 
   /**
@@ -75,7 +61,13 @@ trait AsyncStream[+A] {
 
   def head: A
   
-  protected def addDefinedElems(buf: StringBuilder, prefix: String): StringBuilder
+  protected def addDefinedElems(buf: StringBuilder, prefix: String): StringBuilder = {
+    val buf1 = buf.append(prefix).append(head)
+    asyncTail.result match {
+      case None => buf1 append ", ?"
+      case Some(result) => result.toFunction.apply.addDefinedElems(buf1, ", ")
+    }
+  }
 
   def asyncElements: AsyncIterator[A] = new AsyncIterator[A] {
     var current = AsyncStream.this
@@ -116,7 +108,7 @@ trait AsyncStream[+A] {
    * Get the tail of the list and return it asynchronously, via the
    * given continuation.
    */
-  def asyncTail(fc: FC[AsyncStream[A]]): Nothing
+  def asyncTail: AsyncFuture[AsyncStream[A]]
 
   /**
    * Convert the stream to a list. The result is returned
