@@ -12,7 +12,7 @@ object AsyncStream {
   /**
    * An empty AsyncStream.
    */
-  val empty = new AsyncStream[Nothing] {
+  val empty: AsyncStream[Nothing] = new AsyncStream[Nothing] {
     override def isEmpty: Boolean = true
     override def head: Nothing = throw new NoSuchElementException("head of empty stream")
     val asyncTail = new AsyncLazyFuture({ (fc: FC[AsyncStream[Nothing]]) =>
