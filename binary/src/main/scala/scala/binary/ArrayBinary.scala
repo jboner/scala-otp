@@ -16,7 +16,7 @@ private[scala] final case class ArrayBinary private[binary] (private[scala] val 
     array(offset + i)
   }
 
-  protected def slice0(from: Int, until: Int): ArrayBinary = {
+  protected def forcedSlice0(from: Int, until: Int): ArrayBinary = {
     new ArrayBinary(array, offset + from, until - from)
   }
 
@@ -26,7 +26,7 @@ private[scala] final case class ArrayBinary private[binary] (private[scala] val 
     Array.copy(this.array, offset + from, dest, destFrom, until - from)
   }
 
-  protected def arrays0(from: Int, until: Int): Iterable[ArrayBinary] = slice0(from, until) :: Nil
+  protected def arrays0(from: Int, until: Int): Iterable[ArrayBinary] = forcedSlice0(from, until) :: Nil
 
   private[scala] def wrappingByteBuffer: ByteBuffer = ByteBuffer.wrap(array, offset, length)
 

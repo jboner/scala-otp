@@ -11,9 +11,9 @@ import java.nio.ByteBuffer
 object Binary {
 
   /**
-   * Gets a Binary containing no bytes.
+   * A Binary containing no bytes.
    */
-  def empty: Binary = new Binary {
+  private val cachedEmpty = new Binary {
 
     override def length = 0
 
@@ -25,24 +25,65 @@ object Binary {
 
     protected def arrays0(from: Int, until: Int): Iterable[ArrayBinary] = Nil
 
-    protected def slice0(from: Int, until: Int): Binary = this
+    protected def forcedSlice0(from: Int, until: Int): Binary = this
 
   }
+
+  /**
+   * Gets an empty Binary.
+   */
+  def empty: Binary = cachedEmpty
 
   /**
    * Creates a Binary containing the given bytes.
    */
   def apply(bytes: Byte*): Binary = fromArray(bytes.toArray, false)
 
+  /**
+   * Creates a Binary from a copy of the given sequence.
+   */
   def fromSeq(seq: Seq[Byte]): Binary = seq match {
     case binary: Binary => binary
     case array: Array[Byte] => fromArray(array, true)
     case _ => fromArray(seq.toArray, false)
   }
 
+  /**
+   * Creats a Binary from a copy of the given bytes.
+   */
   def fromArray(array: Array[Byte]): Binary = fromArray(array, true)
-  def fromArray(array: Array[Byte], offset: Int, length: Int): Binary = fromArray(array, offset, length, true)
-  private[scala] def fromArray(array: Array[Byte], aliased: Boolean): Binary = fromArray(array, 0, array.length, aliased)
+  
+  /**
+   * Creates a Binary from a copy of a slice of the given bytes.
+   */
+  def fromArray(array: Array[Byte], offset: Int, length: Int): Binary =
+    fromArray(array, offset, length, true)
+  
+  /**
+   * UNSAFE: Creates a Binary from the given bytes, optionally copying them.
+   *
+   * <p>This method exposes internal implementation details, allowing callers
+   * to violate the immutability of Binary objects. Nevertheless, it is made
+   * available to the 'scala' package to permit certain optimisations.
+   */
+  private[scala] def fromArray(array: Array[Byte], aliased: Boolean): Binary =
+    fromArray(array, 0, array.length, aliased)
+
+  /**
+   * UNSAFE: Creates a Binary from the given bytes, optionally copying them.
+   *
+   * <p>This method exposes internal implementation details, allowing callers
+   * to violate the immutability of Binary objects. Nevertheless, it is made
+   * available to the 'scala' package to permit certain optimisations.
+   *
+   * @param array The bytes to create the Binary from.
+   * @param offset The first byte to include in the Binary.
+   * @param length The length of the Binary.
+   * @param aliased Whether or not the bytes may be aliased outside this Binary.
+   * If <code>true</code>, then a copy of the bytes will be taken to create the
+   * Binary. If <code>false</code>, then the given bytes may be used to create
+   * an ArrayBinary.
+   */
   private[scala] def fromArray(array: Array[Byte], offset: Int, length: Int, aliased: Boolean): Binary = {
     if (aliased) {
       val copy = new Array[Byte](length)
@@ -54,7 +95,8 @@ object Binary {
   }
 
   /**
-   * Creates a Binary from a String.
+   * Creates a Binary from a String, using the platform's default character
+   * encoding.
    */
   def fromString(string: String): Binary = {
     val bytes = string.getBytes
@@ -62,19 +104,57 @@ object Binary {
   }
 
   /**
-   * Creates a Binary from a String.
+   * Creates a Binary from a String, using the given character encoding.
    */
   def fromString(string: String, charsetName: String): Binary = {
     val bytes = string.getBytes(charsetName)
     fromArray(bytes, false)
   }
 
+  trait BinaryLike extends RandomAccessSeq[Byte] {
+    def force: Binary
+  }
+  trait Projection extends RandomAccessSeq.Projection[Byte] with BinaryLike {
+    override def force = fromSeq(this)
+    override def drop( from: Int) = slice(from, length)
+    override def take(until: Int) = slice(0, until)
+    override def dropWhile(p: Byte => Boolean) = {
+      val c = length + 1
+      drop((findIndexOf(!p(_)) + c) % c)
+    }
+    override def takeWhile(p: Byte => Boolean) = {
+      val c = length + 1
+      take((findIndexOf(!p(_)) + c) % c)
+    }
+    private[binary] def forcedSlice(from0: Int, until0: Int) =
+      slice(from0, until0).force
+    override def slice(from0: Int, until0: Int): Projection = new RandomAccessSeq.Slice[Byte] with Projection {
+      override def from = from0
+      override def until = until0
+      override def underlying = Projection.this
+      override def slice(from0: Int, until0: Int) =
+        Projection.this.slice(from + from0, from + until0)
+      override def force = underlying.forcedSlice(from, until)
+    }
+    override def slice(from0: Int) = slice(from0, length)
+    override def reverse: Projection = new Projection {
+      def apply(i: Int) = Projection.this.apply(length - i - 1)
+      def length = Projection.this.length
+    }
+  }
+
 }
 
 /**
- * An immutable, randomly-accessible sequence of bytes.
+ * An immutable, randomly-accessible sequence of bytes. The current
+ * implementation is a concatenation tree, or "rope". Compared to a simple
+ * <code>Array</code> of bytes, this data structure emphasises the performance
+ * of concatenation and slice operations over that of random access. Iteration
+ * is still fast.
+ *
+ * @see http://www.cs.ubc.ca/local/reading/proceedings/spe91-95/spe/vol25/issue12/spe986.pdf
  */
-trait Binary extends RandomAccessSeq[Byte] {
+trait Binary extends RandomAccessSeq[Byte] with Binary.BinaryLike {
 
   /**
    * The length of the Binary in bytes.
@@ -86,6 +166,9 @@ trait Binary extends RandomAccessSeq[Byte] {
    */
   override def size = length
 
+  /**
+   * The depth of this Binary's tree, where leaves have depth 0.
+   */
   private[binary] def depth: Int
 
   // XXX: Safe to leave unsynchronized? Can a thread ever see a partially-written value?
@@ -122,13 +205,35 @@ trait Binary extends RandomAccessSeq[Byte] {
       i += 1
     }
     true
-  }  
+  }
+  
+  override def projection: Binary.Projection = new Binary.Projection {
+    def length = Binary.this.length
+    def apply(i: Int) = Binary.this.apply(i)
+    override def force = Binary.this
+    override def forcedSlice(from0: Int, until0: Int) =
+      Binary.this.forcedSlice(from0, until0)
+  }
+  override def slice(from: Int, until: Int): Binary.Projection = projection.slice(from, until)
+  override def slice(from: Int): Binary.Projection = projection.slice(from)
+  override def take(until: Int): Binary.Projection = projection.take(until)
+  override def drop(from: Int): Binary.Projection = projection.drop(from)
+  override def dropWhile(p: Byte => Boolean) = projection.dropWhile(p)
+  override def takeWhile(p: Byte => Boolean) = projection.takeWhile(p)
+  override def reverse = projection.reverse
+  override def force = this
 
+  /**
+   * Combine two Binaries into a single ArrayBinary. Used by ++.
+   */
   private def combine(left: Binary, right: Binary): Binary = {
     val combinedArray = (new CompositeBinary(left, right)).toArray
     Binary.fromArray(combinedArray, false)
   }
 
+  /**
+   * Combine to Binaries into a single, balanced CompositeBinary. Used by ++.
+   */
   private def balance(left: Binary, right: Binary): Binary = {
     val composedArray = new CompositeBinary(left, right)
     if (composedArray.isBalanced) composedArray
@@ -136,8 +241,9 @@ trait Binary extends RandomAccessSeq[Byte] {
   }
 
   /**
-   * Append another Binary to this Binary, returning a new Binary as
-   * the result.
+   * Append another Binary to this Binary, returning the resulting aggregation.
+   *
+   * @param other The Binary to append.
    */
   final def ++(other: Binary): Binary = {
     if (isEmpty) {
@@ -168,21 +274,24 @@ trait Binary extends RandomAccessSeq[Byte] {
    * Gets a slice of this binary, returning a new Binary as the
    * result.
    */
-  override final def slice(from: Int, until: Int): Binary = {
+  private[binary] final def forcedSlice(from: Int, until: Int): Binary = {
     if (from == 0 && until == length) this
     else if (from < 0 || until > length) throw new IndexOutOfBoundsException
     else if (from > until) throw new IllegalArgumentException("Argument 'from' was > 'until'.")
-    else slice0(from, until)
+    else forcedSlice0(from, until)
   }
-
-  protected def slice0(from: Int, until: Int): Binary
 
   /**
    * Gets a slice of this binary, returning a new Binary as the
    * result.
    */
-  override final def slice(from: Int) = slice(from, length)
+  private[binary] final def forcedSlice(from: Int) = slice(from, length)
 
+  /**
+   * Internal implementation of slice operation. Called by slice after bounds
+   * checking and some simple optimisations have been performed.
+   */
+  protected def forcedSlice0(from: Int, until: Int): Binary
 
   /**
    * Copy this object's bytes into a given array.
@@ -194,6 +303,10 @@ trait Binary extends RandomAccessSeq[Byte] {
     else copyToArray0(from, until, dest, destFrom)
   }
 
+  /**
+   * Internal implementation of copyToArray operation. Called by copyToArray
+   * after bounds checking and some simple optimisations have been performed.
+   */
   protected def copyToArray0(from: Int, until: Int, dest: Array[Byte], destFrom: Int): Unit
 
   /**
@@ -207,6 +320,10 @@ trait Binary extends RandomAccessSeq[Byte] {
 
   /**
    * Gets the ArrayBinary leaves of this Binary.
+   *
+   * <p>This method exposes internal implementation details of Binary objects,
+   * and so is only made available to the 'scala' package, in order to permit
+   * certain optimisations.
    */
   private[scala] final def arrays(from: Int, until: Int): Iterable[ArrayBinary] = {
     if (from < 0 || until > length) throw new IndexOutOfBoundsException
@@ -214,6 +331,10 @@ trait Binary extends RandomAccessSeq[Byte] {
     else arrays0(from, until)
   }
 
+  /**
+   * Internal implementation of arrays operation. Called by arrays
+   * after bounds checking and some simple optimisations have been performed.
+   */
   protected def arrays0(from: Int, until: Int): Iterable[ArrayBinary]
 
   /**
@@ -221,17 +342,34 @@ trait Binary extends RandomAccessSeq[Byte] {
    * content. It is important not to modify the content of any buffer,
    * as this will alter the content of this Binary - which must not
    * happen.
+   *
+   * <p>This method exposes internal implementation details, allowing callers
+   * to violate the immutability of Binary objects. Nevertheless, it is made
+   * available to the 'scala' package to permit certain optimisations.
    */
   private[scala] final def byteBuffers(from: Int, until: Int): Iterable[ByteBuffer] =
     arrays0(from, until) map { _.wrappingByteBuffer }
 
- private[scala] final def byteBuffers: Iterable[ByteBuffer] =
+  private[scala] final def byteBuffers: Iterable[ByteBuffer] =
     byteBuffers(0, length)
 
   /**
    * Get a textual representation of this object.
    */
-  override def toString = toHexString
+  override def toString = {
+    val builder = new StringBuilder()
+    builder.append("Binary(")
+    val maxLength = 16
+    take(maxLength).addString(builder, ", ")
+    if (length > maxLength) {
+      val remaining = length - maxLength
+      builder.append(", [")
+      builder.append(remaining)
+      builder.append(" more]")
+    }
+    builder.append(")")
+    builder.toString
+  }
 
   /**
    * Get a hexadecimal representation of this object's bytes.

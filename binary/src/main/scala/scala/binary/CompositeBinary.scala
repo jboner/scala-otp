@@ -63,13 +63,13 @@ private[binary] final case class CompositeBinary private[binary] (private[binary
     process(arrays(0, length).toList.toArray)
   }
 
-  protected def slice0(from: Int, until: Int): Binary = {
+  protected def forcedSlice0(from: Int, until: Int): Binary = {
     if (until <= left.length) {
       // Slice is completely contained by left component.
-      left.slice(from, until)
+      left.forcedSlice(from, until)
     } else if (from >= left.length) {
       // Slice is completely contained by right component.
-      right.slice(from - left.length, until - left.length)
+      right.forcedSlice(from - left.length, until - left.length)
     } else {
       new Binary {
 
@@ -90,8 +90,8 @@ private[binary] final case class CompositeBinary private[binary] (private[binary
           CompositeBinary.this.arrays0(from + from2, from + until2)
         }
 
-        protected def slice0(from2: Int, until2: Int): Binary = {
-          CompositeBinary.this.slice0(from + from2, from + until2)
+        protected def forcedSlice0(from2: Int, until2: Int): Binary = {
+          CompositeBinary.this.forcedSlice0(from + from2, from + until2)
         }
       } 
     }
