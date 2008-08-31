@@ -42,7 +42,7 @@ class AsyncStreamSuite extends TestNGSuite with Checkers {
     asyncTest(10000) {
       check { (list: List[Int]) =>
         //println("testToList: " + list)
-        list == AsyncStream.fromList(list).toList
+        list == AsyncStream.fromList(list).toStream.toList
       }
     }
   }
@@ -64,7 +64,7 @@ class AsyncStreamSuite extends TestNGSuite with Checkers {
       check { (list1: List[Int], list2: List[Int]) =>
         val as1 = AsyncStream.fromList(list1)
         val as2 = AsyncStream.fromList(list2)
-        (list1 ++ list2) == { fc: FC[AsyncStream[Int]] => as1.asyncAppend(Return(as2).toAsyncFunction)(fc) }.toFunction.apply.toList
+        (list1 ++ list2) == { fc: FC[AsyncStream[Int]] => as1.asyncAppend(Return(as2).toAsyncFunction)(fc) }.toFunction.apply.toStream.toList
       }
     }
   }
@@ -78,7 +78,7 @@ class AsyncStreamSuite extends TestNGSuite with Checkers {
         val as = AsyncStream.fromList(list)
         list == { fc: FC[AsyncStream[Int]] =>
           AsyncStream.fromAsyncIterator(as.asyncElements)(fc)
-        }.within(1000).toFunction.apply.toList
+        }.within(1000).toFunction.apply.toStream.toList
       }
     }
   }
@@ -92,7 +92,7 @@ class AsyncStreamSuite extends TestNGSuite with Checkers {
         def double(x: Int) = x * 2
         val asyncDouble = (double _).toAsyncFunction
         val as = AsyncStream.fromList(list)
-        list.map(double) == { fc: FC[AsyncStream[Int]] => as.asyncMap(asyncDouble)(fc) }.within(1000).toFunction.apply.toList
+        list.map(double) == { fc: FC[AsyncStream[Int]] => as.asyncMap(asyncDouble)(fc) }.within(1000).toFunction.apply.toStream.toList
       }
     }
   }
@@ -103,7 +103,7 @@ class AsyncStreamSuite extends TestNGSuite with Checkers {
       println("testMap")
       check { (list: List[Int]) =>
         def double(x: Int) = x * 2
-        list.map(double) == AsyncStream.fromList(list).map(double).toList
+        list.map(double) == AsyncStream.fromList(list).toStream.map(double).toList
       }
     }
   }

@@ -69,8 +69,14 @@ object AsyncStream {
  * available, but this is relatively heavyweight, since it uses
  * <code>callWithCC</code> internally.
  */
-trait AsyncStream[+A] extends Stream[A] {
+trait AsyncStream[+A] {
+
+  def isEmpty: Boolean
+
+  def head: A
   
+  protected def addDefinedElems(buf: StringBuilder, prefix: String): StringBuilder
+
   def asyncElements: AsyncIterator[A] = new AsyncIterator[A] {
     var current = AsyncStream.this
     def hasNext(fc: FC[Boolean]) = {
@@ -86,8 +92,25 @@ trait AsyncStream[+A] extends Stream[A] {
       }
     }
   }
+  
+  /**
+   * Convert this AsyncStream into a synchronous Stream. Calling
+   * <code>tail</code> will block the current thread, while evaluation occurs
+   * in a different actor.
+   */
+  def toStream: Stream[A] = new Stream[A] {
+    
+    override def isEmpty = AsyncStream.this.isEmpty
+    
+    def head = AsyncStream.this.head
 
-  def tail = { fc: FC[AsyncStream[A]] => asyncTail(fc) }.toFunction.apply
+    def tail = {
+      fc: FC[AsyncStream[A]] => AsyncStream.this.asyncTail(fc)
+    }.toFunction.apply.toStream
+    
+    protected def addDefinedElems(buf: StringBuilder, prefix: String): StringBuilder =
+      AsyncStream.this.addDefinedElems(buf, prefix)
+  }
 
   /**
    * Get the tail of the list and return it asynchronously, via the
