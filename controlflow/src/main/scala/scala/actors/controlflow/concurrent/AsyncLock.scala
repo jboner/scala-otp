@@ -50,12 +50,18 @@ class AsyncLock {
     }
   }
 
-  def withLock[R](f: AsyncFunction0[R]): AsyncFunction0[R] = {
+  /**
+   * Create a version of the given function which synchronizes with this lock.
+   *
+   * <pre>
+   * lock.syn(f)(fc)
+   * </pre>
+   */
+  def syn[R](f: AsyncFunction0[R]): AsyncFunction0[R] = {
     { (fc: FC[R]) =>
       import fc.implicitThr
-      lock { () =>
-        f(fc.withFinally((() => unlock).toAsyncFunction))
-      }
+      val finFC = fc.fin((() => unlock).toAsyncFunction)
+      lock { () => f(finFC) }
     }
   }
 }

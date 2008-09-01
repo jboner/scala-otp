@@ -30,16 +30,24 @@ case class FC[-R] (ret: Cont[R], thr: Cont[Throwable]) {
   implicit def implicitThr: Cont[Throwable] = thr
 
   /**
+   * Creates a new FC which wraps this FC, guaranteeing that the given
+   * AsyncFunction0 will execute before this FC is called. This is analogous
+   * to Scala's finally clause.
    *
+   * <pre>
+   * val resource = ...
+   * val finFC = fc.fin { resource.close }.toAsyncFunction
+   * useResource(finFC)
+   * </pre>
    */
-  def withFinally(body: AsyncFunction0[Unit]): FC[R] = {
+  def fin(body: AsyncFunction0[Unit]): FC[R] = {
     // Run body before returning.
-    val finallyRet: Cont[R] = { (value: R) =>
+    val finRet: Cont[R] = { (value: R) =>
       body { () => ret(value) }
     }
-    val finallyThr: Cont[Throwable] = { (t: Throwable) =>
+    val finThr: Cont[Throwable] = { (t: Throwable) =>
       body { () => thr(t) }
     }
-    FC(finallyRet, finallyThr)
+    FC(finRet, finThr)
   }
 }
