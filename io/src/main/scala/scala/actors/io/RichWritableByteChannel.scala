@@ -3,7 +3,9 @@ package scala.actors.io
 import java.nio.channels._
 import java.nio.ByteBuffer
 import scala.actors.controlflow._
+import scala.actors.controlflow.AsyncStreamBuilder
 import scala.actors.controlflow.ControlFlow._
+import scala.actors.controlflow.concurrent.AsyncLock
 import scala.binary.Binary
 import scala.collection.immutable.Queue
 import scala.collection.jcl.Conversions._
@@ -11,8 +13,10 @@ import scala.collection.jcl.Conversions._
 trait RichWritableByteChannel {
   val channel: SelectableChannel with GatheringByteChannel
   val richSelector: RichSelector
+  
+  private val writeLock = new AsyncLock()
 
-  def asyncWrite(binary: Binary)(fc: FC[Unit]): Nothing = {
+  private def internalWrite(binary: Binary)(fc: FC[Unit]): Nothing = {
     import fc.implicitThr
     def tryWrite(buffers: Array[ByteBuffer], offset: Int): Nothing = try {
       if (offset >= buffers.length) {
@@ -39,5 +43,15 @@ trait RichWritableByteChannel {
       case e: Exception => fc.thr(e)
     }
     tryWrite(binary.byteBuffers.toList.toArray, 0)
+  }
+
+  def asyncWrite(binary: Binary)(fc: FC[Unit]): Nothing = {
+    writeLock.syn(internalWrite(binary)(_: FC[Unit]))(fc)
+  }
+
+  private def asyncWrite(as: AsyncStream[Binary])(fc: FC[Unit]): Nothing = {
+    (writeLock.syn { (fc2: FC[Unit]) =>
+      as.asyncForeach(internalWrite(_: Binary)(_: FC[Unit]))(fc2)
+    })(fc)
   }
 }

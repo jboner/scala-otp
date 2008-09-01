@@ -11,7 +11,8 @@ import scala.collection.jcl.Conversions._
 
 class RichSocketChannel(val channel: SocketChannel, val richSelector: RichSelector) extends RichReadableByteChannel with RichWritableByteChannel {
 
-  protected[this] val bufferLength: Int = 256
+  @volatile
+  var readLength: Int = 256
 
   def asyncConnect(remote: SocketAddress)(fc: FC[Unit]): Nothing = {
     import fc.implicitThr
