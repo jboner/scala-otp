@@ -37,6 +37,19 @@ object AsyncStream {
     if (list.isEmpty) AsyncStream.empty
     else cons(list.head, (() => AsyncStream.fromList(list.tail)).toAsyncFunction)
 
+  /**
+   * Convert the given iterator into an AsyncStream.
+   */
+  def fromIterator[A](iterator: Iterator[A]): AsyncStream[A] =
+    if (iterator.hasNext) cons(iterator.next, (() => AsyncStream.fromIterator(iterator)).toAsyncFunction)
+    else AsyncStream.empty
+
+  /**
+   * Convert the given iterable into an AsyncStream.
+   */
+  def fromIterable[A](iterable: Iterable[A]): AsyncStream[A] =
+    fromIterator(iterable.elements)
+
   def fromAsyncIterator[A](itr: AsyncIterator[A])(fc: FC[AsyncStream[A]]): Nothing = {
     import fc.implicitThr
     itr.hasNext { (hasNext: Boolean) =>
@@ -153,6 +166,9 @@ trait AsyncStream[+A] {
     asyncElements.asyncForeach(f)(fc)
   }
 
+  def asyncFoldLeft[B](z: B)(op: AsyncFunction1[(B, A), B])(fc: FC[B]): Nothing = {
+    asyncElements.asyncFoldLeft(z)(op)(fc)
+  }
   /**
    * Concatenate two streams. The second stream is made available as
    * the result of an AsyncFunction0. The result is returned

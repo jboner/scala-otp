@@ -132,4 +132,19 @@ trait AsyncIterator[+A] {
     }
   }
 
+  def asyncFoldLeft[B](z: B)(op: AsyncFunction1[(B, A), B])(fc: FC[B]): Nothing = {
+    import fc.implicitThr
+    hasNext { hasNextResult: Boolean =>
+      if (hasNextResult) {
+        next { nextResult: A =>
+          op((z, nextResult)) { zNew: B =>
+            asyncFoldLeft(zNew)(op)(fc)
+          }
+        }
+      } else {
+        fc.ret(z)
+      }
+    }
+  }
+
 }
