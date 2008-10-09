@@ -4,36 +4,41 @@
 
 package scala.actors.component
 
-import net.liftweb.util.{Can, Full, Empty, Failure}
-
-import org.testng.annotations.{Test, BeforeMethod}
-
 import scala.actors.behavior._
 import scala.actors.annotation.oneway
 
 import org.scalatest.testng.TestNGSuite
 import org.scalatest._
 
+import org.testng.annotations.{Test, BeforeMethod}
+
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 class ActiveObjectSuite extends TestNGSuite {
 
-  var messageLog = ""
+  private var messageLog = ""
 
   trait Foo {
-    def foo(msg: String)    
+    def foo(msg: String): String    
     @oneway def bar(msg: String)
+    def longRunning
+	def throwsException
   }
 
   class FooImpl extends Foo {
     val bar: Bar = new BarImpl 
-    def foo(msg: String) = messageLog += msg
+    def foo(msg: String): String = { 
+      messageLog += msg
+      "return_foo " 
+    }
     def bar(msg: String) = bar.bar(msg)
+    def longRunning = Thread.sleep(10000)
+	def throwsException = error("expected")
   }
 
   trait Bar {
-    def bar(msg: String)
+    @oneway def bar(msg: String)
   }
 
   class BarImpl extends Bar {
@@ -47,35 +52,82 @@ class ActiveObjectSuite extends TestNGSuite {
   def setup = messageLog = ""
 
   @Test { val groups=Array("unit") }
-  def testCreateGenericServerBasedComponentUsingCustomSupervisor = {
-    val proxy = new ActiveObjectProxy(new FooImpl, 100)
+  def testCreateGenericServerBasedComponentUsingDefaultSupervisor = {
+    val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 1000)
+    
+    val result = foo.foo("foo ")
+    messageLog += result
 
-    ActiveObject.start(
-      RestartStrategy(AllForOne, 3, 100),
-      Worker(
-        proxy.server,
-        LifeCycle(Permanent, 100))
-      :: Nil)
-
-    val foo = ActiveObject.newInstance[Foo](classOf[Foo], proxy)
-
-    foo.foo("foo ")
     foo.bar("bar ")
-    messageLog += "before bar "
+    messageLog += "before_bar "
 
     Thread.sleep(100)
-    assert("foo before bar bar " === messageLog)
+    assert(messageLog === "foo return_foo before_bar bar ")
   }
 
   @Test { val groups=Array("unit") }
-  def testCreateGenericServerBasedComponentUsingDefaultSupervisor = {
-    val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 100)
+  def testCreateGenericServerBasedComponentUsingCustomSupervisorConfiguration = {
+    val proxy = new ActiveObjectProxy(new FooImpl, 1000)
 
-    foo.foo("foo ")
+    val supervisor = 
+      ActiveObject.supervise(
+        RestartStrategy(AllForOne, 3, 100),
+        Component(
+          proxy,
+          LifeCycle(Permanent, 100))
+        :: Nil)
+
+    val foo = ActiveObject.newInstance[Foo](classOf[Foo], proxy)
+
+    val result = foo.foo("foo ")
+    messageLog += result
+    
     foo.bar("bar ")
-    messageLog += "before bar "
+    messageLog += "before_bar "
 
     Thread.sleep(100)
-    assert("foo before bar bar " === messageLog)
+    assert(messageLog === "foo return_foo before_bar bar ")
+
+    supervisor ! Stop
+  }
+
+   @Test { val groups=Array("unit") }
+  def testCreateTwoGenericServerBasedComponentUsingCustomSupervisorConfiguration = {
+    val fooProxy = new ActiveObjectProxy(new FooImpl, 1000)
+    val barProxy = new ActiveObjectProxy(new BarImpl, 1000)
+
+    val supervisor = 
+      ActiveObject.supervise(
+        RestartStrategy(AllForOne, 3, 100),
+        Component(
+          fooProxy,
+          LifeCycle(Permanent, 100)) ::
+        Component(
+          barProxy,
+          LifeCycle(Permanent, 100))
+        :: Nil)
+
+    val foo = ActiveObject.newInstance[Foo](classOf[Foo], fooProxy)
+    val bar = ActiveObject.newInstance[Bar](classOf[Bar], barProxy)
+
+    val result = foo.foo("foo ")
+    messageLog += result
+
+    bar.bar("bar ")
+    messageLog += "before_bar "
+
+    Thread.sleep(100)
+    assert(messageLog === "foo return_foo before_bar bar ")
+    
+    supervisor ! Stop
+  }
+
+  @Test { val groups=Array("unit") }
+  def testCreateGenericServerBasedComponentUsingDefaultSupervisorAndForcedTimeout = {
+    val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 1000)  
+	intercept(classOf[ActiveObjectInvocationTimeoutException]) {
+	  foo.longRunning
+    }
+	assert(true === true)
   }
 }
