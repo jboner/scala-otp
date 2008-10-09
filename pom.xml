@@ -21,10 +21,12 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>util-java</module>
     <module>binary</module>
     <module>controlflow</module>
     <module>io</module>
     <module>behavior</module>
+    <module>component</module>
     <module>db</module>
   </modules>
 
@@ -75,6 +77,11 @@
       <dependency>
         <groupId>org.scala-libs</groupId>
         <artifactId>scala-db</artifactId>
+        <version>${library.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.scala-libs</groupId>
+        <artifactId>scala-util-java</artifactId>
         <version>${library.version}</version>
       </dependency>
 
