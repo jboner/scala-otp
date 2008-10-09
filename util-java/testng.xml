@@ -1,0 +1,8 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="All Scala Component Tests" verbose="1">
+  <test name="Component">
+    <classes>
+    </classes>
+  </test>
+</suite>

@@ -1,0 +1,69 @@
+This package implements asynchronous components, also known as Active Objects. Each component is a GenericServer that is managed by a Supervisor, either in isolation or as part of a supervisor hierarchy/tree. The components creation is based on dynamic proxies and the component has to be build up by an interface (trait) and a regular Scala class as implementation. Each component is instantiated through a factory. 
+
+Here is a simple example of a component that is using default Supervisor management (which among other things mean that it is not part of a hierarchy). We start with the component interface and implementation.
+
+  trait Foo {
+    def foo(msg: String): String    
+    @oneway def bar(msg: String)
+  }
+
+  class FooImpl extends Foo {
+    def foo(msg: String): String = { println("foo: " + msg); msg } 
+    def bar(msg: String) = println("bar: " + msg)
+  }
+
+Now let's instantiate this component. The integer 100 specifies the time interval an (asynchronous) invocation should have before timing out. 
+
+  val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 100)
+
+Now we can use this component as any regular instance of Foo. With the difference that:
+
+* All invocations are asynchronous
+* The default scheme is that all invocations are based on a Future waiting for the return value
+* If a method is marked by the @scala.actors.annotation.oneway annotation then it return immediately
+* The component is a fault-tolerant GenericServer managed by a Supervisor
+
+  foo.foo("foo ")
+  foo.bar("bar ") // returns immediately
+
+Now, if I would like to have more control over the Supervisor configuration and/or want to compose different components into supervisor hierarchies, then I can use another factory method along with a method called 'start' that allows you to pass in a Supervisor configuration. Here is a full example:
+
+  trait Foo {
+    def foo(msg: String): String    
+    @oneway def bar(msg: String)
+  }
+
+  class FooImpl extends Foo {
+    val bar: Bar = new BarImpl 
+    def foo(msg: String): String = { println("foo: " + msg); msg } 
+    def bar(msg: String) = bar.bar(msg)
+  }
+
+  trait Bar {
+    def bar(msg: String)
+  }
+
+  class BarImpl extends Bar {
+    def bar(msg: String) = println("bar: " + msg)
+  }
+
+First create a proxy (GenericServer).
+
+  val proxy = new ActiveObjectProxy(new FooImpl, 100)
+
+Then configure the GenericServer(s) (this method takes a list of GenericServer configurations) by passing the proxy's server. This configuration is passed into the 'start' method which also starts up the Supervisor which starts up all GenericServer's according to their configurations. 
+
+  ActiveObject.start(
+    RestartStrategy(AllForOne, 3, 100),
+    Worker(
+      proxy.server,
+      LifeCycle(Permanent, 100))
+    :: Nil)
+
+Create and use the components as usual. 
+
+  val foo = ActiveObject.newInstance[Foo](classOf[Foo], proxy)
+
+  foo.foo("foo ")
+  foo.bar("bar ")
+
