@@ -10,7 +10,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import scala.actors._
 import scala.actors.Actor._
 
-import net.lag.logging.{Logger, Config}
+import net.lag.logging.Logger
 
 class SystemFailure(cause: Throwable) extends RuntimeException(cause)
 
@@ -20,7 +20,6 @@ class SystemFailure(cause: Throwable) extends RuntimeException(cause)
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 trait Logging {
-  Config.config // To make sure config system is bootstrapped
   @transient val log = Logger.get(this.getClass.getName)
 }
 

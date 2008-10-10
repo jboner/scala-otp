@@ -24,12 +24,8 @@
       <artifactId>scala-library</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
+      <groupId>net.lag</groupId>
+      <artifactId>configgy</artifactId>
     </dependency>
     <dependency>
       <groupId>org.scalatest</groupId>
