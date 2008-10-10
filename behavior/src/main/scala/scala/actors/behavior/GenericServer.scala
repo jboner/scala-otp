@@ -5,8 +5,6 @@
 
 package scala.actors.behavior
 
-import org.slf4j.{Logger, LoggerFactory}
-
 import scala.actors._
 import scala.actors.Actor._
 
