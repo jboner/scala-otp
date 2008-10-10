@@ -65,8 +65,8 @@ class ActiveObjectProxy(val target: AnyRef, val timeout: Int) extends Invocation
         try {
           reply(ErrRef(invocation.invoke))
         } catch {
-          case e: InvocationTargetException => ErrRef(e.getTargetException)
-          case e => ErrRef(e)
+          case e: InvocationTargetException => reply(ErrRef({ throw e.getTargetException }))
+          case e => reply(ErrRef({ throw e }))
         }
       case 'exit =>  exit; reply()
       case unexpected => throw new ActiveObjectException("Unexpected message to actor proxy: " + unexpected)
@@ -75,16 +75,16 @@ class ActiveObjectProxy(val target: AnyRef, val timeout: Int) extends Invocation
 
   private[component] val server = new GenericServerContainer(target.getClass.getName, () => dispatcher)
   server.setTimeout(timeout)
- 
-  //private[ActiveObjectProxy] val timeOutException = { throw new ActiveObjectInvocationTimeoutException("proxy invocation timed out after " + timeout + " milliseconds") }
   
   def invoke(proxy: AnyRef, m: Method, args: Array[AnyRef]): AnyRef = invoke(Invocation(m, args, target))
 
   def invoke(invocation: Invocation): AnyRef =  {
     if (invocation.method.isAnnotationPresent(oneway)) server ! invocation
     else {
-      val result: ErrRef[AnyRef] = server !!! (invocation, ErrRef({ throw new ActiveObjectInvocationTimeoutException("proxy invocation timed out after " + timeout + " milliseconds") })) 
-      try { result() } catch { case e => e.printStackTrace; throw e }
+	  val result: ErrRef[AnyRef] = try {	
+        server !!! (invocation, ErrRef({ throw new ActiveObjectInvocationTimeoutException("proxy invocation timed out after " + timeout + " milliseconds") })) 
+	  } catch { case e => println("************************"); e.printStackTrace; throw e }
+      result()
     }
   }
 }

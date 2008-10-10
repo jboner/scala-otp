@@ -130,4 +130,13 @@ class ActiveObjectSuite extends TestNGSuite {
     }
 	assert(true === true)
   }
+
+  @Test { val groups=Array("unit") }
+  def testCreateGenericServerBasedComponentUsingDefaultSupervisorAndForcedException = {
+    val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 10000)  
+	intercept(classOf[RuntimeException]) {
+	  foo.throwsException
+    }
+	assert(true === true)
+  }
 }
