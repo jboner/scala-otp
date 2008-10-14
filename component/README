@@ -14,7 +14,7 @@ Here is a simple example of a component that is using default Supervisor managem
 
 Now let's instantiate this component. The integer 100 specifies the time interval an (asynchronous) invocation should have before timing out. 
 
-  val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 100)
+  val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 1000)
 
 Now we can use this component as any regular instance of Foo. With the difference that:
 
@@ -24,7 +24,7 @@ Now we can use this component as any regular instance of Foo. With the differenc
 * The component is a fault-tolerant GenericServer managed by a Supervisor
 
   foo.foo("foo ")
-  foo.bar("bar ") // returns immediately
+  foo.bar("bar ") // returns immediately since annotated with @oneway
 
 Now, if I would like to have more control over the Supervisor configuration and/or want to compose different components into supervisor hierarchies, then I can use another factory method along with a method called 'start' that allows you to pass in a Supervisor configuration. 
 
@@ -51,21 +51,30 @@ Here is a full example:
 
 First create a proxy (GenericServer).
 
-  val proxy = new ActiveObjectProxy(new FooImpl, 100)
+  val fooProxy = new ActiveObjectProxy(new FooImpl, 1000)
+  val barProxy = new ActiveObjectProxy(new BarImpl, 1000)
 
-Then configure the GenericServer(s) (this method takes a list of GenericServer configurations) by passing the proxy's server. This configuration is passed into the 'start' method which also starts up the Supervisor which starts up all GenericServer's according to their configurations. 
 
-  ActiveObject.start(
-    RestartStrategy(AllForOne, 3, 100),
-    Worker(
-      proxy.server,
-      LifeCycle(Permanent, 100))
-    :: Nil)
+Then configure the GenericServer(s) (this method takes a list of GenericServer configurations) by passing the proxy's server. This configuration is passed into the 'supervise' method which also starts up the Supervisor which starts up all GenericServer's according to their configurations before returning the Supervisor instance (which can be used for later management). 
+
+  val supervisor = 
+    ActiveObject.supervise(
+      RestartStrategy(AllForOne, 3, 100),
+      Component(
+        fooProxy,
+        LifeCycle(Permanent, 100)) ::
+      Component(
+        barProxy,
+        LifeCycle(Permanent, 100))
+      :: Nil)
 
 Create and use the components as usual. 
 
-  val foo = ActiveObject.newInstance[Foo](classOf[Foo], proxy)
+  val foo = ActiveObject.newInstance[Foo](classOf[Foo], fooProxy)
+  val bar = ActiveObject.newInstance[Bar](classOf[Bar], barProxy)
 
   foo.foo("foo ")
-  foo.bar("bar ")
+  bar.bar("bar ")
+
+That pretty much sums it up. Try it out and send suggestions, improvements, patches etc. to jonas AT jonasboner DOT com.
 

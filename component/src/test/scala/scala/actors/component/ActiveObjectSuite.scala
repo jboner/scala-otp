@@ -43,7 +43,7 @@ class ActiveObjectSuite extends TestNGSuite {
 
   class BarImpl extends Bar {
     def bar(msg: String) = { 
-      Thread.sleep(10)
+      Thread.sleep(100)
       messageLog += msg
     }
   }
@@ -85,7 +85,7 @@ class ActiveObjectSuite extends TestNGSuite {
     foo.bar("bar ")
     messageLog += "before_bar "
 
-    Thread.sleep(100)
+    Thread.sleep(1000)
     assert(messageLog === "foo return_foo before_bar bar ")
 
     supervisor ! Stop
@@ -134,7 +134,7 @@ class ActiveObjectSuite extends TestNGSuite {
   @Test { val groups=Array("unit") }
   def testCreateGenericServerBasedComponentUsingDefaultSupervisorAndForcedException = {
     val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 10000)  
-      intercept(classOf[RuntimeException]) {
+    intercept(classOf[RuntimeException]) {
       foo.throwsException
     }
     assert(true === true)

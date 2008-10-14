@@ -5,8 +5,6 @@
 
 package scala.actors.behavior
 
-import org.slf4j.{Logger, LoggerFactory}
-
 import scala.actors._
 import scala.actors.Actor._
 
@@ -269,7 +267,7 @@ class GenericServerContainer(val id: String, var serverFactory: () => GenericSer
       log.debug("Waiting {} milliseconds for the server to shut down before killing it.", shutdownTime)
       server !? (shutdownTime, Shutdown(reason)) match {
         case Some('success) => log.debug("Server [{}] has been shut down cleanly.", id)
-        case None => log.warn("Server [{}] was **not able** to complete shutdown cleanly within its configured shutdown time [{}]", id, shutdownTime)
+        case None => log.warning("Server [{}] was **not able** to complete shutdown cleanly within its configured shutdown time [{}]", id, shutdownTime)
       }
     }
     server ! Terminate(reason)

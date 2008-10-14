@@ -171,7 +171,7 @@ class Supervisor(faultHandler: FaultHandlingStrategy) extends Actor with Logging
             case _ => state.faultHandler.handleFailure(state, failedServer, reason)
           }
 
-        case unexpected => log.warn("Unexpected message [{}], ignoring...", unexpected)
+        case unexpected => log.warning("Unexpected message [{}], ignoring...", unexpected)
       }
     }
   }

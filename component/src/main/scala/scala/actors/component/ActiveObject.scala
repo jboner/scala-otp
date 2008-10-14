@@ -50,7 +50,6 @@ object ActiveObject {
         proxy,
         LifeCycle(Permanent, 100))
       :: Nil)
-
 }
 
 /**
@@ -81,9 +80,7 @@ class ActiveObjectProxy(val target: AnyRef, val timeout: Int) extends Invocation
   def invoke(invocation: Invocation): AnyRef =  {
     if (invocation.method.isAnnotationPresent(oneway)) server ! invocation
     else {
-	  val result: ErrRef[AnyRef] = try {	
-        server !!! (invocation, ErrRef({ throw new ActiveObjectInvocationTimeoutException("proxy invocation timed out after " + timeout + " milliseconds") })) 
-	  } catch { case e => println("************************"); e.printStackTrace; throw e }
+      val result: ErrRef[AnyRef] = server !!! (invocation, ErrRef({ throw new ActiveObjectInvocationTimeoutException("proxy invocation timed out after " + timeout + " milliseconds") })) 
       result()
     }
   }
