@@ -23,7 +23,7 @@ class ActiveObjectSuite extends TestNGSuite {
     def foo(msg: String): String    
     @oneway def bar(msg: String)
     def longRunning
-	def throwsException
+    def throwsException
   }
 
   class FooImpl extends Foo {
@@ -34,7 +34,7 @@ class ActiveObjectSuite extends TestNGSuite {
     }
     def bar(msg: String) = bar.bar(msg)
     def longRunning = Thread.sleep(10000)
-	def throwsException = error("expected")
+    def throwsException = error("expected")
   }
 
   trait Bar {
@@ -116,7 +116,7 @@ class ActiveObjectSuite extends TestNGSuite {
     bar.bar("bar ")
     messageLog += "before_bar "
 
-    Thread.sleep(100)
+    Thread.sleep(500)
     assert(messageLog === "foo return_foo before_bar bar ")
     
     supervisor ! Stop
@@ -125,18 +125,18 @@ class ActiveObjectSuite extends TestNGSuite {
   @Test { val groups=Array("unit") }
   def testCreateGenericServerBasedComponentUsingDefaultSupervisorAndForcedTimeout = {
     val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 1000)  
-	intercept(classOf[ActiveObjectInvocationTimeoutException]) {
-	  foo.longRunning
+    intercept(classOf[ActiveObjectInvocationTimeoutException]) {
+      foo.longRunning
     }
-	assert(true === true)
+    assert(true === true)
   }
 
   @Test { val groups=Array("unit") }
   def testCreateGenericServerBasedComponentUsingDefaultSupervisorAndForcedException = {
     val foo = ActiveObject.newInstance[Foo](classOf[Foo], new FooImpl, 10000)  
-	intercept(classOf[RuntimeException]) {
-	  foo.throwsException
+      intercept(classOf[RuntimeException]) {
+      foo.throwsException
     }
-	assert(true === true)
+    assert(true === true)
   }
 }
