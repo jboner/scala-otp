@@ -61,7 +61,7 @@ class ActiveObjectSuite extends TestNGSuite {
     foo.bar("bar ")
     messageLog += "before_bar "
 
-    Thread.sleep(100)
+    Thread.sleep(500)
     assert(messageLog === "foo return_foo before_bar bar ")
   }
 
@@ -85,7 +85,7 @@ class ActiveObjectSuite extends TestNGSuite {
     foo.bar("bar ")
     messageLog += "before_bar "
 
-    Thread.sleep(1000)
+    Thread.sleep(500)
     assert(messageLog === "foo return_foo before_bar bar ")
 
     supervisor ! Stop
