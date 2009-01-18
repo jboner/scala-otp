@@ -19,12 +19,12 @@ import java.lang.System.{currentTimeMillis => timeNow}
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-private[db] class InMemoryStorage(schema: Map[Class[_], Table]) extends Storage(schema)
+private[db] class InMemoryStorage(schema: CovariantMap[Class[_], Table]) extends Storage(schema)
 
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-private[db] abstract class Storage(protected val schema: Map[Class[_], Table]) {
+private[db] abstract class Storage(protected val schema: CovariantMap[Class[_], Table]) {
 
   protected val db = Map[Column, Treap[Index, AnyRef]]()
   protected val indices = Map[Column, Treap[Index, Map[Index, AnyRef]]]()
@@ -33,7 +33,7 @@ private[db] abstract class Storage(protected val schema: Map[Class[_], Table]) {
    * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
    */
   private[db] object PKFactory {
-    val keys = Map[Class[T] forSome {type T}, AtomicLong]()
+    val keys = new CovariantMap[Class[_], AtomicLong]
     val indexFactory = (key: Any) => key.asInstanceOf[PK]
 
     def init(table: Class[_]) = {
@@ -42,7 +42,7 @@ private[db] abstract class Storage(protected val schema: Map[Class[_], Table]) {
           val treap = db(getPKColumnFor(table))
           if (!treap.isEmpty) treap.lastKey.value.asInstanceOf[Long] else 1L
         } else 1L
-      keys += table -> new AtomicLong(currrentIndex)
+      keys(table) = new AtomicLong(currrentIndex)
     }
 
     def next(table: Class[_]): PK = {
@@ -64,7 +64,7 @@ private[db] abstract class Storage(protected val schema: Map[Class[_], Table]) {
       if (pkField.getType != classOf[PK]) throw new IllegalArgumentException("Primary key field <" + pkName + "> for table <" + table.getName + "> has to be of type <PK>")
       
       if (schema.contains(table)) throw new IllegalArgumentException("Table <" + table.getName + "> already exists")
-      schema += table -> Table(table, columns, pkColumn, PKFactory.indexFactory, GeneratePrimaryKeySequence(), Nil)
+      schema(table) = Table(table, columns, pkColumn, PKFactory.indexFactory, GeneratePrimaryKeySequence(), Nil)
 
       db += getPKColumnFor(table) -> new Treap[Index, AnyRef] 
       addIndex(pkName, table, PKFactory.indexFactory)    
@@ -78,7 +78,7 @@ private[db] abstract class Storage(protected val schema: Map[Class[_], Table]) {
     log.info("Creating table <{}> with columns <{}>", table.getName, columns)
 
     if (schema.contains(table)) throw new IllegalArgumentException("Table <" + table.getName + "> already exists")
-    schema += table -> Table(table, columns, pkColumn, pkIndexFactory, CustomPrimaryKeySequence(), Nil)
+    schema(table) = Table(table, columns, pkColumn, pkIndexFactory, CustomPrimaryKeySequence(), Nil)
 
     db += getPKColumnFor(table) -> new Treap[Index, AnyRef] 
     addIndex(pkName, table, pkIndexFactory)    

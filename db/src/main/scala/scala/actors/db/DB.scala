@@ -331,7 +331,7 @@ private[db] class DBServer extends GenericServer with Logging {
 
   private var storage: Storage = _
 
-  def createStorage(strategy: StorageStrategy, schema: Map[Class[_], Table]) = strategy match {
+  def createStorage(strategy: StorageStrategy, schema: CovariantMap[Class[_], Table]) = strategy match {
     case InMemoryStorageStrategy => new InMemoryStorage(schema)
     case EvictableStorageStrategy(timeout: Long) => new EvictableStorage(schema, timeout)
     case DiskBasedStorageStrategy => throw new UnsupportedOperationException("DiskBasedStorageStrategy is yet to be implemented")

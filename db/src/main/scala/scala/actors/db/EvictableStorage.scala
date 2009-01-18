@@ -19,7 +19,7 @@ import java.lang.System.{currentTimeMillis => timeNow}
 /**
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
-private[db] class EvictableStorage(schema: Map[Class[_], Table], val timeout: Long) extends Storage(schema) {
+private[db] class EvictableStorage(schema: CovariantMap[Class[_], Table], val timeout: Long) extends Storage(schema) {
 
   @serializable
   private sealed case class Evictable(val entity: AnyRef, val timeout: Long) {

@@ -212,7 +212,7 @@ abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRang
   private var nrOfRetries = 0
   private var retryStartTime = currentTime
 
-  private[behavior] def handleFailure(state: SupervisorState, failedServer: Actor, reason: AnyRef) = {
+  private[behavior] def handleFailure(state: SupervisorState, failedServer: AbstractActor, reason: AnyRef) = {
     nrOfRetries += 1
     if (timeRangeHasExpired) {
       if (hasReachedMaximumNrOfRetries) {
@@ -262,7 +262,7 @@ abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRang
   /**
    * To be overriden by concrete strategies.
    */
-  protected def doHandleFailure(state: SupervisorState, failedServer: Actor, reason: AnyRef)
+  protected def doHandleFailure(state: SupervisorState, failedServer: AbstractActor, reason: AnyRef)
 
   /**
    * To be overriden by concrete strategies.
@@ -287,7 +287,7 @@ abstract class FaultHandlingStrategy(val maxNrOfRetries: Int, val withinTimeRang
  */
 class AllForOneStrategy(maxNrOfRetries: Int, withinTimeRange: Int)
 extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
-  override def doHandleFailure(state: SupervisorState, failedServer: Actor, reason: AnyRef) = {
+  override def doHandleFailure(state: SupervisorState, failedServer: AbstractActor, reason: AnyRef) = {
     log.error("Server [{}] has failed due to [{}] - scheduling restart - scheme: ALL_FOR_ONE.", failedServer, reason)
     for (serverContainer <- state.serverContainers) restart(serverContainer, reason, state)
     state.supervisors.foreach(_ ! Exit(failedServer, reason))
@@ -302,7 +302,7 @@ extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
  */
 class OneForOneStrategy(maxNrOfRetries: Int, withinTimeRange: Int)
 extends FaultHandlingStrategy(maxNrOfRetries, withinTimeRange) {
-  override def doHandleFailure(state: SupervisorState, failedServer: Actor, reason: AnyRef) = {
+  override def doHandleFailure(state: SupervisorState, failedServer: AbstractActor, reason: AnyRef) = {
     log.error("Server [{}] has failed due to [{}] - scheduling restart - scheme: ONE_FOR_ONE.", failedServer, reason)
     var serverContainer: Option[GenericServerContainer] = None
     state.serverContainers.foreach {

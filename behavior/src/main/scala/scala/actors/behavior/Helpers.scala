@@ -73,12 +73,19 @@ object Helpers extends Logging {
       a.send(msg, ftch)
       new FutureWithTimeout[A](ftch) {
         def apply() =
-          if (isSet) value.get
+          if (isSet) value.get.asInstanceOf[A]
           else ch.receive {
             case a: A =>
               value = Some(a)
-              value.get
+              a
           }
+	def respond(k: A => Unit): Unit =
+	  if (isSet) k(value.get.asInstanceOf[A])
+	  else ch.react {
+	    case a: A =>
+	      value = Some(a)
+	      k(a)
+	  }        
         def isSet = receiveWithin(0).isDefined
         def receiveWithin(timeout: Int): Option[A] = value match {
           case None => ch.receiveWithin(timeout) {
@@ -87,7 +94,7 @@ object Helpers extends Logging {
               None
             case a: A =>
               value = Some(a)
-              value
+              value.asInstanceOf[Option[A]]
           }
           case a: Some[A] => a
         }

@@ -17,7 +17,7 @@ sealed abstract case class DBMessage
 // -----------------------
 @serializable
 case class Config(storageStrategy: StorageStrategy) {
-  val schema = Map[Class[T] forSome { type T }, Table]()
+  val schema = new CovariantMap[Class[_], Table]()
 }
 @serializable
 abstract case class StorageStrategy extends DBMessage 
