@@ -1,6 +1,11 @@
 package scala.binary
 
+import java.io.ObjectInput
+import java.io.ObjectOutput
+import java.io.Serializable
 import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset._
 
 /**
  * Useful methods for working Binary objects, including Binary
@@ -11,28 +16,9 @@ import java.nio.ByteBuffer
 object Binary {
 
   /**
-   * A Binary containing no bytes.
-   */
-  private val cachedEmpty = new Binary {
-
-    override def length = 0
-
-    override private[binary] def depth = 0
-
-    override def apply(i: Int) = throw new IndexOutOfBoundsException
-
-    protected def copyToArray0(from: Int, until: Int, dest: Array[Byte], destFrom: Int): Unit = ()
-
-    protected def arrays0(from: Int, until: Int): Iterable[ArrayBinary] = Nil
-
-    protected def forcedSlice0(from: Int, until: Int): Binary = this
-
-  }
-
-  /**
    * Gets an empty Binary.
    */
-  def empty: Binary = cachedEmpty
+  def empty: Binary = EmptyBinary
 
   /**
    * Creates a Binary containing the given bytes.
@@ -154,7 +140,8 @@ object Binary {
  *
  * @see http://www.cs.ubc.ca/local/reading/proceedings/spe91-95/spe/vol25/issue12/spe986.pdf
  */
-trait Binary extends RandomAccessSeq[Byte] with Binary.BinaryLike {
+@serializable
+trait Binary extends RandomAccessSeq[Byte] with Binary.BinaryLike with Serializable {
 
   /**
    * The length of the Binary in bytes.
@@ -319,7 +306,7 @@ trait Binary extends RandomAccessSeq[Byte] with Binary.BinaryLike {
   }
 
   /**
-   * Gets the ArrayBinary leaves of this Binary.
+   * Gets the ArrayBinary leaves of this Binary in a given range.
    *
    * <p>This method exposes internal implementation details of Binary objects,
    * and so is only made available to the 'scala' package, in order to permit
@@ -330,6 +317,16 @@ trait Binary extends RandomAccessSeq[Byte] with Binary.BinaryLike {
     else if (from == until) Nil
     else arrays0(from, until)
   }
+
+  /**
+   * Gets all the ArrayBinary leaves of this Binary.
+   *
+   * <p>This method exposes internal implementation details of Binary objects,
+   * and so is only made available to the 'scala' package, in order to permit
+   * certain optimisations.
+   */
+  private[scala] final def arrays: Iterable[ArrayBinary] =
+    arrays(0, length)
 
   /**
    * Internal implementation of arrays operation. Called by arrays
@@ -384,6 +381,47 @@ trait Binary extends RandomAccessSeq[Byte] with Binary.BinaryLike {
       builder.append(Character.forDigit(lower, 16))
     }
     builder.toString
+  }
+
+  /**
+   * Decodes the Binary into a String, using a given charset.
+   *
+   * @throws java.nio.BufferUnderflowException If the Binary contains too few bytes.
+   * @throws java.nio.charset.MalformedInputException If the input is malformed.
+   * @throws java.nio.charset.UnmappableCharacterException If the output cannot be represented in the charset.
+   */
+  def decodeString(charsetName: String): String = {
+    val charset = Charset.forName(charsetName)
+    val decoder = charset.newDecoder()
+    val maxChars = (decoder.maxCharsPerByte().asInstanceOf[Double] * length).asInstanceOf[Int]
+    val charArray = new Array[Char](maxChars)
+    val charBuffer = CharBuffer.wrap(charArray)
+    val result = decodeStringWith(decoder, charBuffer)
+    result match {
+      case None => {
+	decoder.decode(ByteBuffer.allocate(0), charBuffer, true)
+	decoder.flush(charBuffer)
+	new String(charArray, 0, charBuffer.position)
+      }
+      case Some(coderResult) => {
+	coderResult.throwException
+	throw new AssertionError("Unreachable code")
+      }
+    }
+  }
+
+  /**
+   * Decodes the Binary into a String using the given decoder and output buffer.
+   *
+   * @return None if decoding succeeds, or Some(coderResult) with the
+   * error causing failure.
+   */
+  def decodeStringWith(decoder: CharsetDecoder, charBuffer: CharBuffer): Option[CoderResult] = {
+    for (bb <- byteBuffers) {
+      val result = decoder.decode(bb, charBuffer, false)
+      if (result.isError) return Some(result)
+    }
+    None
   }
 
   /**

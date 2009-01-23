@@ -1,5 +1,9 @@
 package scala.binary
 
+import java.io.IOException
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
+import java.io.Serializable
 import java.nio.ByteBuffer
 
 /**
@@ -7,7 +11,9 @@ import java.nio.ByteBuffer
  *
  * @author <a href="http://www.richdougherty.com/">Rich Dougherty</a>
  */
-private[scala] final case class ArrayBinary private[binary] (private[scala] val array: Array[Byte], private[scala] val offset: Int, val length: Int) extends Binary {
+@serializable
+@SerialVersionUID(-8770946590245372965L)
+private[scala] final case class ArrayBinary private[binary] (private[scala] var array: Array[Byte], private[scala] var offset: Int, var length: Int) extends Binary with Serializable {
 
   override private[binary] def depth = 0
 
@@ -31,5 +37,24 @@ private[scala] final case class ArrayBinary private[binary] (private[scala] val 
   private[scala] def wrappingByteBuffer: ByteBuffer = ByteBuffer.wrap(array, offset, length)
 
   override def elements: Iterator[Byte] = array.slice(offset, offset + length).elements
+
+  private def writeObject(out: ObjectOutputStream): Unit = {
+    out.writeInt(length)
+    out.write(array, offset, length)
+  }
+
+  private def readObject(in: ObjectInputStream): Unit = {
+    offset = 0
+    length = in.readInt()
+    array = new Array[Byte](length)
+    var remaining = length
+    while (remaining > 0) {
+      val readLength = in.read(array, length - remaining, remaining)
+      if (readLength == -1) {
+	throw new IOException("Expected " + remaining + " more bytes.")
+      }
+      remaining -= readLength
+    }
+  }
 
 }

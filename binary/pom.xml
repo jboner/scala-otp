@@ -21,6 +21,12 @@
     </dependency>
 
     <dependency>
+      <groupId>commons-lang</groupId>
+      <artifactId>commons-lang</artifactId>
+      <version>2.4</version> <!-- FIXME: Rich Dougherty 2008/01/18: Maven complains when I remove this. -->
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.scalatest</groupId>
       <artifactId>scalatest</artifactId>
       <scope>test</scope>

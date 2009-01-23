@@ -18,7 +18,42 @@ import org.scalatest._
 class BinarySuite extends TestNGSuite with Checkers {
 
   implicit def arbBinary: Arbitrary[Binary] = Arbitrary {
-    for (bytes <- Arbitrary.arbitrary[Array[Byte]]) yield Binary.fromArray(bytes)
+    def genArrayBinary(multiplier: Int) = 
+      for (prefix <- Arbitrary.arbitrary[Array[Byte]];
+	   content <- Arbitrary.arbitrary[Array[Byte]];
+	   suffix <- Arbitrary.arbitrary[Array[Byte]]) yield {
+	     val binaries = List(prefix) ++ (for (_ <- 0 until multiplier) yield { content }) ++ List(suffix)
+	     val combined = binaries.foldLeft(new Array[Byte](0))((a: Array[Byte], b: Array[Byte]) => a ++ b)
+	     Binary.fromArray(combined, prefix.length, content.length * multiplier, false)
+	   }
+
+    def genLeafBinary = Gen.frequency(
+      (1, Gen.value(Binary.empty)),
+      (8, genArrayBinary(1)),
+      (3, genArrayBinary(10)),
+      (2, genArrayBinary(100)),
+    )
+
+    def genBinary(maxDepth: Int): Gen[Binary] = {
+      if (maxDepth == 0) {
+	genLeafBinary
+      } else {
+	Gen.frequency(
+	  (1, genLeafBinary),
+	  (2, for (binary1 <- genBinary(maxDepth - 1);
+		   binary2 <- genBinary(maxDepth - 1)) yield {
+		     binary1 ++ binary2
+		   })
+	)
+      }
+    }
+    Gen.frequency(
+      (1, genBinary(0)),
+      (1, genBinary(1)),
+      (1, genBinary(2)),
+      (1, genBinary(3)),
+      (1, genBinary(10))
+    )
   }
 
   def element(seq: RandomAccessSeq[Byte], i: Int): Option[Byte] = try {
@@ -155,6 +190,20 @@ class BinarySuite extends TestNGSuite with Checkers {
     same(array.take(5), Binary.fromArray(array).take(5))
     check((array: Array[Byte]) =>
         same(array.take(5), Binary.fromArray(array).take(5)))
+  }
+
+  @Test
+  def testDecodeString = {
+    // FIXME: Make this test a bit more comprehensive!
+    assert(Binary.fromString("hello world").decodeString("UTF8") == ("hello world"))
+  }
+
+  @Test
+  def testSerialization = {
+    check{(bin: Binary) =>
+      val cloned = org.apache.commons.lang.SerializationUtils.clone(bin).asInstanceOf[Binary]
+      bin == cloned
+    }
   }
 
 }
