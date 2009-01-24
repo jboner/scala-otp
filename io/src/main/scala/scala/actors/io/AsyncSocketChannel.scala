@@ -9,7 +9,7 @@ import scala.binary.Binary
 import scala.collection.immutable.Queue
 import scala.collection.jcl.Conversions._
 
-class RichSocketChannel(val channel: SocketChannel, val richSelector: RichSelector) extends RichReadableByteChannel with RichWritableByteChannel {
+class AsyncSocketChannel(val channel: SocketChannel, val asyncSelector: AsyncSelector) extends AsyncReadableByteChannel with AsyncWritableByteChannel {
 
   @volatile
   var readLength: Int = 256
@@ -22,8 +22,7 @@ class RichSocketChannel(val channel: SocketChannel, val richSelector: RichSelect
         case true => fc.ret(())
         case false => {
           // Connect failed, use selector to callback when ready.
-          richSelector.register(channel, RichSelector.Connect) { () => asyncConnect0 }
-          Actor.exit
+          asyncSelector.register(channel, AsyncSelector.Connect) { () => asyncConnect0 }
         }
       }
     }

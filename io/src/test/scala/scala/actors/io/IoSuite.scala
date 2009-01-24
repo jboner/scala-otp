@@ -19,7 +19,7 @@ import java.nio.ByteBuffer
 /**
  * Tests for io classes.
  *
- * @author <a href="http://www.richdougherty.com/">Rich Dougherty</a>
+ * @author <a href="http://www.asyncdougherty.com/">Async Dougherty</a>
  */
 class IoSuite extends TestNGSuite with Checkers {
 
@@ -34,18 +34,18 @@ class IoSuite extends TestNGSuite with Checkers {
 
     val result = { fc: FC[Binary] =>
       import fc.implicitThr
-      val selector = new RichSelector
+      val selector = new AsyncSelector
       val ssc = ServerSocketChannel.open
       ssc.configureBlocking(false)
       val ss = ssc.socket
       ss.setReuseAddress(true)
       ss.bind(address)
-      val rssc  = new RichServerSocketChannel(ssc, selector)
+      val rssc  = new AsyncServerSocketChannel(ssc, selector)
       Actor.actor {
         println("Accepting")
         rssc.asyncAccept { sc1: SocketChannel => 
           sc1.configureBlocking(false)
-          val rsc1 = new RichSocketChannel(sc1, selector)
+          val rsc1 = new AsyncSocketChannel(sc1, selector)
           println("Sending: " + new String(binary.toArray))
           rsc1.asyncWrite(binary) { () => println("Closing socket") ; sc1.close }
           println("Closing server socket")
@@ -55,7 +55,7 @@ class IoSuite extends TestNGSuite with Checkers {
       Actor.actor {
         val sc2: SocketChannel = SocketChannel.open
         sc2.configureBlocking(false)
-        val rsc2 = new RichSocketChannel(sc2, selector)
+        val rsc2 = new AsyncSocketChannel(sc2, selector)
         println("Connecting")
         rsc2.asyncConnect(address) { () => println("Receiving") ; rsc2.asyncReadAll(fc) }
       }

@@ -10,13 +10,11 @@ import scala.binary.Binary
 import scala.collection.immutable.Queue
 import scala.collection.jcl.Conversions._
 
-trait RichWritableByteChannel {
+trait AsyncWritableByteChannel extends AsyncWritable {
   val channel: SelectableChannel with GatheringByteChannel
-  val richSelector: RichSelector
+  val asyncSelector: AsyncSelector
   
-  private val writeLock = new AsyncLock()
-
-  private def internalWrite(binary: Binary)(fc: FC[Unit]): Nothing = {
+  protected def internalWrite(binary: Binary)(fc: FC[Unit]): Nothing = {
     import fc.implicitThr
     def tryWrite(buffers: Array[ByteBuffer], offset: Int): Nothing = try {
       if (offset >= buffers.length) {
@@ -30,11 +28,10 @@ trait RichWritableByteChannel {
         channel.write(buffers, offset, buffers.length) match {
           case 0 => {
             // Write failed, use selector to callback when ready.
-            richSelector.register(channel, RichSelector.Write) { () => tryWrite(buffers, offset) }
-            Actor.exit
+            asyncSelector.register(channel, AsyncSelector.Write) { () => tryWrite(buffers, offset) }
           }
           case _ => {
-            //println("RichWritableByteChannel: wrote "+length+" bytes.")
+            //println("AsyncWritableByteChannel: wrote "+length+" bytes.")
             tryWrite(buffers, offset)
           }
         }
@@ -43,15 +40,5 @@ trait RichWritableByteChannel {
       case e: Exception => fc.thr(e)
     }
     tryWrite(binary.byteBuffers.toList.toArray, 0)
-  }
-
-  def asyncWrite(binary: Binary)(fc: FC[Unit]): Nothing = {
-    writeLock.syn(internalWrite(binary)(_: FC[Unit]))(fc)
-  }
-
-  private def asyncWrite(as: AsyncStream[Binary])(fc: FC[Unit]): Nothing = {
-    (writeLock.syn { (fc2: FC[Unit]) =>
-      as.asyncForeach(internalWrite(_: Binary)(_: FC[Unit]))(fc2)
-    })(fc)
   }
 }
