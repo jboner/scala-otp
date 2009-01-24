@@ -20,12 +20,12 @@ class BinarySuite extends TestNGSuite with Checkers {
   implicit def arbBinary: Arbitrary[Binary] = Arbitrary {
     def genArrayBinary(multiplier: Int) = 
       for (prefix <- Arbitrary.arbitrary[Array[Byte]];
-	   content <- Arbitrary.arbitrary[Array[Byte]];
-	   suffix <- Arbitrary.arbitrary[Array[Byte]]) yield {
-	     val binaries = List(prefix) ++ (for (_ <- 0 until multiplier) yield { content }) ++ List(suffix)
-	     val combined = binaries.foldLeft(new Array[Byte](0))((a: Array[Byte], b: Array[Byte]) => a ++ b)
-	     Binary.fromArray(combined, prefix.length, content.length * multiplier, false)
-	   }
+           content <- Arbitrary.arbitrary[Array[Byte]];
+           suffix <- Arbitrary.arbitrary[Array[Byte]]) yield {
+        val binaries = List(prefix) ++ (for (_ <- 0 until multiplier) yield { content }) ++ List(suffix)
+        val combined = binaries.foldLeft(new Array[Byte](0))((a: Array[Byte], b: Array[Byte]) => a ++ b)
+        Binary.fromArray(combined, prefix.length, content.length * multiplier, false)
+      }
 
     def genLeafBinary = Gen.frequency(
       (1, Gen.value(Binary.empty)),
@@ -36,15 +36,15 @@ class BinarySuite extends TestNGSuite with Checkers {
 
     def genBinary(maxDepth: Int): Gen[Binary] = {
       if (maxDepth == 0) {
-	genLeafBinary
+        genLeafBinary
       } else {
-	Gen.frequency(
-	  (1, genLeafBinary),
-	  (2, for (binary1 <- genBinary(maxDepth - 1);
-		   binary2 <- genBinary(maxDepth - 1)) yield {
-		     binary1 ++ binary2
-		   })
-	)
+        Gen.frequency(
+          (1, genLeafBinary),
+          (2, for (binary1 <- genBinary(maxDepth - 1);
+                   binary2 <- genBinary(maxDepth - 1)) yield {
+              binary1 ++ binary2
+            })
+        )
       }
     }
     Gen.frequency(

@@ -51,7 +51,7 @@ private[scala] final case class ArrayBinary private[binary] (private[scala] var 
     while (remaining > 0) {
       val readLength = in.read(array, length - remaining, remaining)
       if (readLength == -1) {
-	throw new IOException("Expected " + remaining + " more bytes.")
+        throw new IOException("Expected " + remaining + " more bytes.")
       }
       remaining -= readLength
     }

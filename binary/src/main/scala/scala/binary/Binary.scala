@@ -399,13 +399,13 @@ trait Binary extends RandomAccessSeq[Byte] with Binary.BinaryLike with Serializa
     val result = decodeStringWith(decoder, charBuffer)
     result match {
       case None => {
-	decoder.decode(ByteBuffer.allocate(0), charBuffer, true)
-	decoder.flush(charBuffer)
-	new String(charArray, 0, charBuffer.position)
+        decoder.decode(ByteBuffer.allocate(0), charBuffer, true)
+        decoder.flush(charBuffer)
+        new String(charArray, 0, charBuffer.position)
       }
       case Some(coderResult) => {
-	coderResult.throwException
-	throw new AssertionError("Unreachable code")
+        coderResult.throwException
+        throw new AssertionError("Unreachable code")
       }
     }
   }
