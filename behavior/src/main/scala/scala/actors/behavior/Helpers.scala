@@ -10,15 +10,17 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import scala.actors._
 import scala.actors.Actor._
 
-import org.slf4j.{Logger, LoggerFactory}
+import net.lag.logging.Logger
 
 class SystemFailure(cause: Throwable) extends RuntimeException(cause)
 
 /**
+ * Base trait for all classes that wants to be able use the logging infrastructure.
+ *
  * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
  */
 trait Logging {
-  val log = LoggerFactory.getLogger(this.getClass)
+  @transient val log = Logger.get(this.getClass.getName)
 }
 
 /**

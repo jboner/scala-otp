@@ -21,10 +21,12 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>util-java</module>
     <module>binary</module>
     <module>controlflow</module>
     <module>io</module>
     <module>behavior</module>
+    <module>component</module>
     <module>db</module>
   </modules>
 
@@ -33,6 +35,11 @@
       <id>scala-tools.org</id>
       <name>Scala-Tools Maven2 Repository</name>
       <url>http://scala-tools.org/repo-releases</url>
+    </repository>
+    <repository>
+      <id>configgy</id>
+      <name>Configgy's' Repository</name>
+      <url>http://www.lag.net/repo</url>
     </repository>
   </repositories>
 
@@ -77,18 +84,16 @@
         <artifactId>scala-db</artifactId>
         <version>${library.version}</version>
       </dependency>
-
       <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-        <version>1.5.2</version>
+        <groupId>org.scala-libs</groupId>
+        <artifactId>scala-util-java</artifactId>
+        <version>${library.version}</version>
       </dependency>
       <dependency>
-        <groupId>ch.qos.logback</groupId>
-        <artifactId>logback-classic</artifactId>
-        <version>0.9.9</version>
+        <groupId>net.lag</groupId>
+        <artifactId>configgy</artifactId>
+        <version>1.1</version>
       </dependency>
-
       <dependency>
         <groupId>commons-lang</groupId>
         <artifactId>commons-lang</artifactId>
