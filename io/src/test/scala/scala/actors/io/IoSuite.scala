@@ -19,7 +19,7 @@ import java.nio.ByteBuffer
 /**
  * Tests for io classes.
  *
- * @author <a href="http://www.asyncdougherty.com/">Async Dougherty</a>
+ * @author <a href="http://www.richdougherty.com/">Rich Dougherty</a>
  */
 class IoSuite extends TestNGSuite with Checkers {
 
