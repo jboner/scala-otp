@@ -47,12 +47,8 @@ class AsyncPromise[A] extends AsyncFuture[A] {
   
   def result: Option[FunctionResult[A]] = synchronized {
     state match {
-      case Unset(_) => {
-        None
-      }
-      case Set(result) => {
-        Some(result)
-      }
+      case Unset(_) => None
+      case Set(result) => Some(result)
     }
   }
 }
