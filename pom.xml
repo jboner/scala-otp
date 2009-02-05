@@ -142,6 +142,10 @@
           <target>1.5</target>
           <encoding>UTF-8</encoding>
           <scalaVersion>${scala.version}</scalaVersion>
+	  <args>
+	    <!--arg>-deprecation</arg-->
+	    <arg>-Ywarn-dead-code</arg>
+	  </args>
         </configuration>
       </plugin>
       <plugin>
