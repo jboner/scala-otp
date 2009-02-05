@@ -24,10 +24,18 @@ object AsyncStream {
    * Create a stream from a given head and an AsyncFunction0 that
    * returns the tail. The tail is evaluated lazily.
    */
-  def cons[A](hd: A, getTail: AsyncFunction0[AsyncStream[A]]) = new AsyncStream[A] {
+  def cons[A](hd: A, getTail: AsyncFunction0[AsyncStream[A]]) =
+    consFuture(hd, new AsyncLazyFuture(getTail))
+
+  /**
+   * Create a stream from a given head and an AsyncFuture that will
+   * contain the tail. XXX: Not sure whether to force an
+   * AsyncLazyFuture here.
+   */
+  def consFuture[A](hd: A, tail: AsyncFuture[AsyncStream[A]]) = new AsyncStream[A] {
     override def isEmpty = false
     def head = hd
-    val asyncTail = new AsyncLazyFuture(getTail)
+    val asyncTail = tail
   }
 
   /**
@@ -120,6 +128,8 @@ trait AsyncStream[+A] {
   /**
    * Get the tail of the list and return it asynchronously, via the
    * given continuation.
+   *
+   * XXX: Should we require an AsyncLazyFuture?
    */
   def asyncTail: AsyncFuture[AsyncStream[A]]
 
