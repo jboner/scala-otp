@@ -61,32 +61,32 @@
 
       <dependency>
         <groupId>org.scala-libs</groupId>
-        <artifactId>scala-binary</artifactId>
+        <artifactId>scala-otp-binary</artifactId>
         <version>${library.version}</version>
       </dependency>
       <dependency>
         <groupId>org.scala-libs</groupId>
-        <artifactId>scala-controlflow</artifactId>
+        <artifactId>scala-otp-controlflow</artifactId>
         <version>${library.version}</version>
       </dependency>
       <dependency>
         <groupId>org.scala-libs</groupId>
-        <artifactId>scala-io</artifactId>
+        <artifactId>scala-otp-io</artifactId>
         <version>${library.version}</version>
       </dependency>
       <dependency>
         <groupId>org.scala-libs</groupId>
-        <artifactId>scala-behavior</artifactId>
+        <artifactId>scala-otp-behavior</artifactId>
         <version>${library.version}</version>
       </dependency>
       <dependency>
         <groupId>org.scala-libs</groupId>
-        <artifactId>scala-db</artifactId>
+        <artifactId>scala-otp-db</artifactId>
         <version>${library.version}</version>
       </dependency>
       <dependency>
         <groupId>org.scala-libs</groupId>
-        <artifactId>scala-util-java</artifactId>
+        <artifactId>scala-otp-util-java</artifactId>
         <version>${library.version}</version>
       </dependency>
       <dependency>

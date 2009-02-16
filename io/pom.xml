@@ -2,7 +2,7 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>scala-io</artifactId>
+  <artifactId>scala-otp-io</artifactId>
 
   <name>Scala Actors IO Module</name>
   <description>Supports non-blocking IO using actors.</description> 
@@ -21,11 +21,11 @@
     </dependency>
     <dependency>
       <groupId>org.scala-libs</groupId>
-      <artifactId>scala-binary</artifactId>
+      <artifactId>scala-otp-binary</artifactId>
     </dependency>
     <dependency>
       <groupId>org.scala-libs</groupId>
-      <artifactId>scala-controlflow</artifactId>
+      <artifactId>scala-otp-controlflow</artifactId>
     </dependency>
     
     <dependency>

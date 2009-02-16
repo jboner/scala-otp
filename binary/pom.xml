@@ -2,7 +2,7 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>scala-binary</artifactId>
+  <artifactId>scala-otp-binary</artifactId>
 
   <name>Scala Binary Module</name>
   <description>Implements an Erlang-style immutable Binary type. This type can be used as a safer alternative to byte arrays.</description> 

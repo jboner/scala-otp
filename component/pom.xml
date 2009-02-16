@@ -2,7 +2,7 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>scala-component</artifactId>
+  <artifactId>scala-otp-component</artifactId>
 
   <name>Scala Actors Component Module</name>
   <description>Asynchronous components</description> 
@@ -17,11 +17,11 @@
   <dependencies>
     <dependency>
       <groupId>org.scala-libs</groupId>
-      <artifactId>scala-util-java</artifactId>
+      <artifactId>scala-otp-util-java</artifactId>
     </dependency>
     <dependency>
       <groupId>org.scala-libs</groupId>
-      <artifactId>scala-behavior</artifactId>
+      <artifactId>scala-otp-behavior</artifactId>
     </dependency>
     <dependency>
       <groupId>org.scala-lang</groupId>
