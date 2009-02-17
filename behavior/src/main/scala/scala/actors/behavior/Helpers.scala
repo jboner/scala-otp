@@ -92,7 +92,7 @@ object Helpers extends Logging {
         def receiveWithin(timeout: Int): Option[A] = value match {
           case None => ch.receiveWithin(timeout) {
             case TIMEOUT =>
-              log.debug("Future timed out while waiting for actor: {}", a)
+              log.debug("Future timed out while waiting for actor: %s", a)
               None
             case a: A =>
               value = Some(a)
