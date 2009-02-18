@@ -86,15 +86,12 @@ class ActiveObjectProxy(val target: AnyRef, val timeout: Int) extends Invocation
   }
 }
 
-/**
- * Represents a snapshot of the current invocation.
- * 
- * @author <a href="http://jonasboner.com">Jonas Bon&#233;r</a>
- */
 case class Invocation(val method: Method, val args: Array[Object], val target: AnyRef) {
-  def invoke: AnyRef = method.invoke(target, args)
+  method.setAccessible(true);
 
-  override def toString: String = "Invocation [method: " + method.getName + ", args: " + args + ", target: " + target + "]"
+  def invoke: AnyRef = method.invoke(target, args:_*)
+
+  override def toString: String = "Invocation [method: " + method.getName + ", args: " + argsToString(args) + ", target: " + target + "]"
 
   override def hashCode(): Int = {
     var result = HashCode.SEED
@@ -108,10 +105,17 @@ case class Invocation(val method: Method, val args: Array[Object], val target: A
     that != null &&
     that.isInstanceOf[Invocation] &&
     that.asInstanceOf[Invocation].method == method &&
-    that.asInstanceOf[Invocation].args == args
-    that.asInstanceOf[Invocation].target == target
+    that.asInstanceOf[Invocation].target == target &&
+    isEqual(that.asInstanceOf[Invocation].args, args)
   }
+
+  private def isEqual(a1: Array[Object], a2: Array[Object]): Boolean =
+    (a1 == null && a2 == null) ||
+    (a1 != null && a2 != null && a1.size == a2.size && a1.zip(a2).find(t => t._1 == t._2).isDefined)
+
+  private def argsToString(array: Array[Object]): String = array.foldLeft("(")(_ + " " + _) + ")"
 }
+
 
 /**
  * Reference that can hold either a typed value or an exception.
